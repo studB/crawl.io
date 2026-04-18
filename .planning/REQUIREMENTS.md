@@ -28,11 +28,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Auth (Naver login + session reuse)
 
-- [ ] **AUTH-01**: Crawler reads `NAVER_ID` and `NAVER_PW` from environment variables when the target requires Naver login
+- [x] **AUTH-01**: Crawler reads `NAVER_ID` and `NAVER_PW` from environment variables when the target requires Naver login
 - [ ] **AUTH-02**: Crawler saves Playwright storage state to `.crawl-session.json` after a successful login
 - [ ] **AUTH-03**: Crawler reuses `.crawl-session.json` on subsequent runs when the session is still valid
-- [ ] **AUTH-04**: Crawler detects captcha / 2FA challenges during the login flow
-- [ ] **AUTH-05**: Crawler opens a headed browser for manual resolve when a challenge is detected, waits for the user to complete it, then saves the fresh storage state and proceeds
+- [x] **AUTH-04**: Crawler detects captcha / 2FA challenges during the login flow
+- [x] **AUTH-05**: Crawler opens a headed browser for manual resolve when a challenge is detected, waits for the user to complete it, then saves the fresh storage state and proceeds
 - [x] **AUTH-06**: `.crawl-session.json` is added to `.gitignore` so credentials/cookies never end up in version control
 
 ### Output (write-back to markdown)
@@ -110,11 +110,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CRWL-05 | Phase 2 | Complete |
 | CRWL-06 | Phase 2 | Complete |
 | CRWL-07 | Phase 2 | Complete |
-| AUTH-01 | Phase 3 | Pending |
+| AUTH-01 | Phase 3 | Complete |
 | AUTH-02 | Phase 3 | Pending |
 | AUTH-03 | Phase 3 | Pending |
-| AUTH-04 | Phase 3 | Pending |
-| AUTH-05 | Phase 3 | Pending |
+| AUTH-04 | Phase 3 | Complete |
+| AUTH-05 | Phase 3 | Complete |
 | AUTH-06 | Phase 3 | Complete |
 | OUT-01 | Phase 2 | Complete |
 | OUT-02 | Phase 2 | Complete |

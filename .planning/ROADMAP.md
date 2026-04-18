@@ -61,7 +61,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. When a captcha or 2FA challenge is detected, a headed browser window opens; after the user resolves it manually, the session is saved and the crawl proceeds without restarting
 **Plans**: 3 plans
   - [x] 03-01-PLAN.md — Extend CrawlErrorCode union (10 members), land session.ts helpers + unit tests, verify .gitignore [Wave 1]
-  - [ ] 03-02-PLAN.md — Pure detect.ts classifiers, naver.ts login-form helpers, headed.ts polling orchestrator + exhaustive unit tests [Wave 1]
+  - [x] 03-02-PLAN.md — Pure detect.ts classifiers, naver.ts login-form helpers, headed.ts polling orchestrator + exhaustive unit tests [Wave 1]
   - [ ] 03-03-PLAN.md — ensureAuthenticated barrel, runner.ts wiring, runner auth unit tests, gated Naver integration test [Wave 2]
 
 ### Phase 4: CLI + Packaging

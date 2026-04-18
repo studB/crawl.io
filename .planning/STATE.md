@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-04-18T06:24:24Z"
-last_activity: 2026-04-18 -- Phase 3 Plan 1 complete (CrawlErrorCode→10 members + session helper)
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-04-18T06:35:34.591Z"
+last_activity: 2026-04-18
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 10
-  completed_plans: 8
-  percent: 80
+  completed_plans: 9
+  percent: 90
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-18)
 ## Current Position
 
 Phase: 3
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
-Last activity: 2026-04-18 -- Phase 3 Plan 1 complete (CrawlErrorCode→10 members + session helper)
+Last activity: 2026-04-18
 
 Progress: [████████░░] 80%
 
@@ -61,6 +61,7 @@ Progress: [████████░░] 80%
 | Phase 02-core-crawler-output P02 | 3min | 1 tasks | 2 files |
 | Phase 02-core-crawler-output P03 | 6min | 3 tasks | 11 files |
 | Phase 03-naver-auth-session P01 | 2 min | 2 tasks | 4 files |
+| Phase 03-naver-auth-session P02 | 4 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,10 @@ Recent decisions affecting current work:
 - [Phase 03-naver-auth-session]: 03-01: src/auth/session.ts has ZERO Playwright imports — session-file path resolution + existence + raw UTF-8 read only. Playwright consumes the session via its own { storageState: path } option, so this module never parses the JSON (keeps surface narrow and unit tests zero-browser)
 - [Phase 03-naver-auth-session]: 03-01: cwd is a typed parameter with process.cwd() default, resolved at CALL time (no top-level capture) — lets tests pass os.tmpdir() without chdir; readSession returns undefined on ENOENT and propagates other fs errors unchanged for caller classification
 - [Phase 03-naver-auth-session]: 03-01: AUTH-06 verified (not re-edited) — .gitignore already covers .crawl-session.json since Phase 2 Plan 02-01; stale '7-member string-literal union' JSDoc in src/crawler/index.ts deliberately LEFT UNTOUCHED because that barrel is owned by Plan 03-03
+- [Phase 03-naver-auth-session]: 03-02: detect.ts is pure — ZERO Playwright import (not even type-only), ZERO env reads, ZERO node: imports. Callers hand in plain-data (URL + readonly CookieLike[] + readonly boolean[]); classifyPostLogin priority is captcha URL > selector hit > session cookies > login URL > unknown
+- [Phase 03-naver-auth-session]: 03-02: naver.ts credential redaction boundary (T-03-04) — credentials read in exactly one function, kept in NaverCredentials, NEVER interpolated into error messages; auth_missing_credentials lists only VAR NAMES, auth_failed wraps only the underlying op message; tests plant canary secrets and assert they don't appear in errors
+- [Phase 03-naver-auth-session]: 03-02: headed.ts NON-INTERACTIVE by contract (03-CONTEXT.md D9) — no stdin/readline anywhere; resolveHeadedTimeoutMs silently falls back to default on any malformed env value (non-numeric, ≤0, NaN, Infinity, non-integer via Number.isInteger); pollUntilLoggedIn takes injectable sleep/now for deterministic sub-ms tests
+- [Phase 03-naver-auth-session]: 03-02: T-03-07 suffix-attack mitigation — isNaverHost tests explicitly cover BOTH evil.naver.com (legit subdomain → true) AND evil-naver.com.example (spoof → false); relies on URL.host parsing + literal endsWith('naver.com') check
 
 ### Pending Todos
 
@@ -112,6 +117,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-18T06:24:24Z
-Stopped at: Completed 03-01-PLAN.md
+Last session: 2026-04-18T06:35:34.589Z
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None
