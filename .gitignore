@@ -3,6 +3,9 @@ dist
 *.log
 .DS_Store
 
+.claude/**/*
+.planning/**/*
+
 # Playwright session state (Phase 3)
 .crawl-session.json
 
