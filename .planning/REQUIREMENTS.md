@@ -33,7 +33,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **AUTH-03**: Crawler reuses `.crawl-session.json` on subsequent runs when the session is still valid
 - [ ] **AUTH-04**: Crawler detects captcha / 2FA challenges during the login flow
 - [ ] **AUTH-05**: Crawler opens a headed browser for manual resolve when a challenge is detected, waits for the user to complete it, then saves the fresh storage state and proceeds
-- [ ] **AUTH-06**: `.crawl-session.json` is added to `.gitignore` so credentials/cookies never end up in version control
+- [x] **AUTH-06**: `.crawl-session.json` is added to `.gitignore` so credentials/cookies never end up in version control
 
 ### Output (write-back to markdown)
 
@@ -115,7 +115,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-03 | Phase 3 | Pending |
 | AUTH-04 | Phase 3 | Pending |
 | AUTH-05 | Phase 3 | Pending |
-| AUTH-06 | Phase 3 | Pending |
+| AUTH-06 | Phase 3 | Complete |
 | OUT-01 | Phase 2 | Complete |
 | OUT-02 | Phase 2 | Complete |
 | OUT-03 | Phase 2 | Complete |

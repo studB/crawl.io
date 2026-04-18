@@ -60,7 +60,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `.crawl-session.json` is listed in `.gitignore` so it is never staged by git
   4. When a captcha or 2FA challenge is detected, a headed browser window opens; after the user resolves it manually, the session is saved and the crawl proceeds without restarting
 **Plans**: 3 plans
-  - [ ] 03-01-PLAN.md — Extend CrawlErrorCode union (10 members), land session.ts helpers + unit tests, verify .gitignore [Wave 1]
+  - [x] 03-01-PLAN.md — Extend CrawlErrorCode union (10 members), land session.ts helpers + unit tests, verify .gitignore [Wave 1]
   - [ ] 03-02-PLAN.md — Pure detect.ts classifiers, naver.ts login-form helpers, headed.ts polling orchestrator + exhaustive unit tests [Wave 1]
   - [ ] 03-03-PLAN.md — ensureAuthenticated barrel, runner.ts wiring, runner auth unit tests, gated Naver integration test [Wave 2]
 
@@ -84,5 +84,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Config Parser | 3/3 | Complete    | 2026-04-18 |
 | 2. Core Crawler + Output | 4/4 | Complete    | 2026-04-18 |
-| 3. Naver Auth + Session | 0/TBD | Not started | - |
+| 3. Naver Auth + Session | 1/3 | In Progress | - |
 | 4. CLI + Packaging | 0/TBD | Not started | - |

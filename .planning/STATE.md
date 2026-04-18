@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-04-18T05:59:37.976Z"
-last_activity: 2026-04-18
+status: executing
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-04-18T06:24:24Z"
+last_activity: 2026-04-18 -- Phase 3 Plan 1 complete (CrawlErrorCode→10 members + session helper)
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_plans: 10
+  completed_plans: 8
+  percent: 80
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-04-18)
 ## Current Position
 
 Phase: 3
-Plan: Not started
-Status: 02-03-PLAN.md complete (browser/frame/extract, Wave 2 done); next is 02-04
-Last activity: 2026-04-18
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-04-18 -- Phase 3 Plan 1 complete (CrawlErrorCode→10 members + session helper)
 
-Progress: [█████████░] 86%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: —
 - Total execution time: 0 hours
 
@@ -46,6 +46,7 @@ Progress: [█████████░] 86%
 |-------|-------|-------|----------|
 | 1 | 3 | - | - |
 | 2 | 4 | - | - |
+| 3 | 1 | - | - |
 
 **Recent Trend:**
 
@@ -59,6 +60,7 @@ Progress: [█████████░] 86%
 | Phase 02-core-crawler-output P01 | 4 min | 2 tasks | 7 files |
 | Phase 02-core-crawler-output P02 | 3min | 1 tasks | 2 files |
 | Phase 02-core-crawler-output P03 | 6min | 3 tasks | 11 files |
+| Phase 03-naver-auth-session P01 | 2 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -89,6 +91,10 @@ Recent decisions affecting current work:
 - [Phase 02-core-crawler-output]: 02-03: launchBrowser({ storageState? }) accepts the Phase-3 hook TODAY — conditional spread inside launchBrowser prevents 'storageState: undefined' from leaking into Playwright (exactOptionalPropertyTypes). Phase 3 is an additive call-site change, not a signature break.
 - [Phase 02-core-crawler-output]: 02-03: per-field extraction uses an internal 5000ms cap (EXTRACT_TIMEOUT_MS) separate from rules.timeout — rules.timeout is the page-load/waitFor budget, extraction is sub-second on a rendered page; tight internal cap gives unambiguous error attribution
 - [Phase 02-core-crawler-output]: 02-03 Rule-3 deviation: test/setup/playwright-env.ts extends LD_LIBRARY_PATH from /tmp/playwright-libs when the host is missing system NSS/NSPR/ALSA libs (WSL without sudo); no-op on well-provisioned hosts; crawler source has zero LD_LIBRARY_PATH knowledge
+- [Phase 03-naver-auth-session]: 03-01: CrawlErrorCode grown from 7 → 10 variants ('auth_missing_credentials', 'auth_failed', 'captcha_unresolved' inserted before 'unknown' to preserve the ordering invariant); exhaustiveness test in errors.test.ts now locks the count with expect(codes).toHaveLength(10) so accidental variant removal fails fast
+- [Phase 03-naver-auth-session]: 03-01: src/auth/session.ts has ZERO Playwright imports — session-file path resolution + existence + raw UTF-8 read only. Playwright consumes the session via its own { storageState: path } option, so this module never parses the JSON (keeps surface narrow and unit tests zero-browser)
+- [Phase 03-naver-auth-session]: 03-01: cwd is a typed parameter with process.cwd() default, resolved at CALL time (no top-level capture) — lets tests pass os.tmpdir() without chdir; readSession returns undefined on ENOENT and propagates other fs errors unchanged for caller classification
+- [Phase 03-naver-auth-session]: 03-01: AUTH-06 verified (not re-edited) — .gitignore already covers .crawl-session.json since Phase 2 Plan 02-01; stale '7-member string-literal union' JSDoc in src/crawler/index.ts deliberately LEFT UNTOUCHED because that barrel is owned by Plan 03-03
 
 ### Pending Todos
 
@@ -106,6 +112,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-18T02:47:24.294Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-04-18T06:24:24Z
+Stopped at: Completed 03-01-PLAN.md
 Resume file: None
