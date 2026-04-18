@@ -284,6 +284,18 @@ describe('parseConfig — errors', () => {
     expect(urlIssues[0]).toMatch(/empty/i);
   });
 
+  it('missing `# URL` produces exactly one url-tagged "missing" issue — tagged-dedup not substring-dedup (MR-04)', () => {
+    // Guards against regression to substring-based dedup: the new
+    // tagged-dedup path emits exactly one url-bearing issue whose wording
+    // is the "missing" diagnostic (not accidentally suppressed by some
+    // other section's error that mentions "url").
+    const md = buildConfig({ url: null });
+    const err = catchConfigError(() => parseConfig(md));
+    const urlIssues = err.issues.filter((m) => /url/i.test(m));
+    expect(urlIssues.length).toBe(1);
+    expect(urlIssues[0]).toMatch(/missing/i);
+  });
+
   it('YAML anchor host key (`_base`) is rejected as a selector name (MR-01)', () => {
     // `_base` is a real YAML anchor template pattern: `_base: &b ...` then
     // `title: *b`. The anchor host should not leak into the selectors map;

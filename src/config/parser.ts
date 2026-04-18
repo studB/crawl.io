@@ -20,18 +20,35 @@ interface RawSections {
 }
 
 const REQUIRED = ['url', 'selectors', 'rules'] as const;
+type RequiredKey = (typeof REQUIRED)[number];
 const KNOWN_SECTIONS = new Set(['url', 'selectors', 'rules', 'output']);
+
+/**
+ * Structural issue produced by `splitSections`. `key` tags the issue with
+ * the required section it originates from (or `undefined` for issues not
+ * tied to a specific required key, e.g. duplicate-heading warnings may
+ * still carry a key). The REQUIRED-loop dedup matches on `key` directly
+ * rather than substring-scanning `message`, so future messages that
+ * happen to mention another section's name cannot suppress the correct
+ * missing-section diagnostic (MR-04).
+ */
+interface StructuralIssue {
+  key?: RequiredKey;
+  message: string;
+}
 
 /**
  * Walk the root AST, split on H1 headings, and populate RawSections.
  * Returns any structural issues discovered along the way (missing
- * required sections, empty URL, no fenced yaml block, etc.).
+ * required sections, empty URL, no fenced yaml block, etc.). Issues are
+ * tagged with their originating required key (MR-04) so callers can
+ * dedup deterministically.
  */
 function splitSections(tree: Root): {
   sections: RawSections;
-  issues: string[];
+  issues: StructuralIssue[];
 } {
-  const issues: string[] = [];
+  const issues: StructuralIssue[] = [];
   const sections: RawSections = {};
   const children = tree.children;
 
@@ -58,9 +75,11 @@ function splitSections(tree: Root): {
     if (headingName === 'url') {
       const url = extractFirstNonEmptyLine(body);
       if (url === undefined) {
-        issues.push(
-          'URL section is empty (expected a URL on a non-blank line under `# URL`)',
-        );
+        issues.push({
+          key: 'url',
+          message:
+            'URL section is empty (expected a URL on a non-blank line under `# URL`)',
+        });
       } else {
         sections.url = url;
       }
@@ -68,7 +87,10 @@ function splitSections(tree: Root): {
       const code = findYamlFence(body);
       if (code === undefined) {
         const label = headingName === 'selectors' ? 'Selectors' : 'Rules';
-        issues.push(`${label} section has no fenced yaml code block`);
+        issues.push({
+          key: headingName,
+          message: `${label} section has no fenced yaml code block`,
+        });
       } else if (headingName === 'selectors') {
         sections.selectors = code.value;
       } else {
@@ -77,15 +99,15 @@ function splitSections(tree: Root): {
     }
   }
 
-  // Missing-section diagnostics. Skip any key for which splitSections already
-  // produced a more specific structural issue (e.g., "URL section is empty")
-  // so we never double-count the same root cause.
+  // Missing-section diagnostics. Dedup by `key` (not substring of message)
+  // so a future intra-splitSections message that mentions another required
+  // key's name cannot accidentally suppress the correct missing diagnostic.
   for (const key of REQUIRED) {
     if (sections[key] !== undefined) continue;
-    if (issues.some((m) => m.toLowerCase().includes(key))) continue;
+    if (issues.some((i) => i.key === key)) continue;
     const label =
       key === 'url' ? 'URL' : key.charAt(0).toUpperCase() + key.slice(1);
-    issues.push(`\`# ${label}\` section is missing`);
+    issues.push({ key, message: `\`# ${label}\` section is missing` });
   }
 
   return { sections, issues };
@@ -207,8 +229,9 @@ export function parseConfig(
   }
 
   // 2. Split into sections + collect structural issues.
+  //    Flatten tagged StructuralIssue[] -> string[] preserving message order.
   const { sections, issues: sectionIssues } = splitSections(tree);
-  issues.push(...sectionIssues);
+  for (const i of sectionIssues) issues.push(i.message);
 
   // 3. YAML-parse the selectors + rules sections (do NOT short-circuit).
   let selectorsRaw: unknown = undefined;
