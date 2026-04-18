@@ -1,5 +1,12 @@
 node_modules
 dist
-.crawl-session.json
 *.log
 .DS_Store
+
+# Playwright session state (Phase 3)
+.crawl-session.json
+
+# Playwright test artifacts
+test-results/
+playwright-report/
+.playwright-artifacts/

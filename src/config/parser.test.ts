@@ -412,17 +412,24 @@ describe('parser module invariants', () => {
     expect(parseConfigFile.constructor.name).toBe('AsyncFunction');
   });
 
-  it('package.json has no playwright dependency (parser must not launch a browser)', () => {
-    // CFG-06 "clear error before any browser" is implicit if Phase 1 never
-    // imports browser libs. This guards against a careless future edit that
-    // adds playwright to prod deps — such a change must wait for Phase 2.
+  it('parser source does not import playwright / puppeteer / chromium (parser must not launch a browser)', () => {
+    // CFG-06 "clear error before any browser" is implicit if Phase 1's parser
+    // source never imports browser libs. Phase 2 legitimately adds playwright
+    // to prod deps (for src/crawler/*), so this test no longer guards
+    // package.json — it guards the actual parser source file against
+    // accidentally pulling a browser in.
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const pkg = require('../../package.json') as {
-      dependencies?: Record<string, string>;
-    };
-    const deps = Object.keys(pkg.dependencies ?? {});
-    expect(deps.includes('playwright')).toBe(false);
-    expect(deps.includes('puppeteer')).toBe(false);
-    expect(deps.includes('chromium')).toBe(false);
+    const fs = require('node:fs') as typeof import('node:fs');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const path = require('node:path') as typeof import('node:path');
+    const parserSrc = fs.readFileSync(
+      path.resolve(__dirname, 'parser.ts'),
+      'utf8',
+    );
+    expect(parserSrc).not.toMatch(/from\s+['"]playwright['"]/);
+    expect(parserSrc).not.toMatch(/require\(['"]playwright['"]\)/);
+    expect(parserSrc).not.toMatch(/from\s+['"]puppeteer['"]/);
+    expect(parserSrc).not.toMatch(/require\(['"]puppeteer['"]\)/);
+    expect(parserSrc).not.toMatch(/from\s+['"]chromium['"]/);
   });
 });
