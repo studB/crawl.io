@@ -283,6 +283,23 @@ describe('parseConfig — errors', () => {
     expect(urlIssues.length).toBe(1);
     expect(urlIssues[0]).toMatch(/empty/i);
   });
+
+  it('YAML anchor host key (`_base`) is rejected as a selector name (MR-01)', () => {
+    // `_base` is a real YAML anchor template pattern: `_base: &b ...` then
+    // `title: *b`. The anchor host should not leak into the selectors map;
+    // the schema rejects any selector name starting with `_`.
+    const md = buildConfig({
+      selectorsYaml: [
+        '_base: &b',
+        '  selector: h1',
+        'title: *b',
+      ].join('\n'),
+    });
+    const err = catchConfigError(() => parseConfig(md));
+    const anchorIssue = err.issues.find((m) => /_/.test(m) && /selector/i.test(m));
+    expect(anchorIssue).toBeDefined();
+    expect(anchorIssue).toMatch(/_/);
+  });
 });
 
 describe('parseConfigFile', () => {

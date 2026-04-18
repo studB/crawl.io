@@ -45,6 +45,9 @@ export const RulesSchema = z
  *
  * - url must be a valid URL string.
  * - selectors is a Record<string, SelectorSpec> with at least one entry.
+ *   Keys starting with `_` are RESERVED for YAML anchor templates only
+ *   (e.g. `_base: &b ...`). Such keys must not appear as real selectors
+ *   and are rejected here — use anchors to factor shared spec fragments.
  * - rules is a RulesSchema result.
  * - Strict mode: unknown top-level keys rejected (CFG-06).
  */
@@ -52,7 +55,16 @@ export const CrawlJobSchema = z
   .strictObject({
     url: z.url('url must be a valid URL'),
     selectors: z
-      .record(z.string().min(1), SelectorSpecSchema)
+      .record(
+        z
+          .string()
+          .min(1)
+          .regex(
+            /^(?!_)/,
+            'selector names cannot start with "_" (reserved for YAML anchor templates)',
+          ),
+        SelectorSpecSchema,
+      )
       .refine((s) => Object.keys(s).length > 0, {
         message: 'selectors must declare at least one named field',
       }),
