@@ -233,6 +233,14 @@ describe('parseConfig — errors', () => {
     expect(selectorsIssues[0]).toMatch(/missing/i);
   });
 
+  it('missing `# Rules` section reports a structural issue and no duplicate Zod "rules: Required" (LR-03)', () => {
+    const md = buildConfig({ rulesYaml: null });
+    const err = catchConfigError(() => parseConfig(md));
+    const rulesIssues = err.issues.filter((m) => /rules/i.test(m));
+    expect(rulesIssues.length).toBe(1);
+    expect(rulesIssues[0]).toMatch(/missing/i);
+  });
+
   it('`# Selectors` without a fenced yaml block reports a structural "no fenced yaml block" issue', () => {
     const md =
       '# URL\n\nhttps://cafe.naver.com/x/1\n\n# Selectors\n\nprose only, no fence\n\n# Rules\n\n```yaml\ntimeout: 5000\n```\n';
