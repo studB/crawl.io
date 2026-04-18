@@ -1,0 +1,357 @@
+import { describe, it, expect } from 'vitest';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { parseConfig, parseConfigFile } from './parser';
+import { ConfigParseError } from './errors';
+import type { CrawlJob } from './types';
+
+/**
+ * Helper: build a well-formed config markdown string from individual pieces.
+ * Any piece passed as `null` is omitted entirely (so we can exercise
+ * missing-section paths).
+ */
+function buildConfig(parts: {
+  url?: string | null;
+  selectorsYaml?: string | null;
+  rulesYaml?: string | null;
+  outputBlock?: string | null;
+  extraSection?: string | null;
+  urlHeading?: string;
+  selectorsHeading?: string;
+  rulesHeading?: string;
+  selectorsProse?: string;
+  yamlLang?: string; // 'yaml' or 'yml'
+}): string {
+  const urlHeading = parts.urlHeading ?? '# URL';
+  const selectorsHeading = parts.selectorsHeading ?? '# Selectors';
+  const rulesHeading = parts.rulesHeading ?? '# Rules';
+  const lang = parts.yamlLang ?? 'yaml';
+  const sections: string[] = [];
+
+  if (parts.url !== null) {
+    const urlBody = parts.url === undefined ? 'https://cafe.naver.com/example/article/123' : parts.url;
+    sections.push(`${urlHeading}\n\n${urlBody}`);
+  }
+  if (parts.selectorsYaml !== null) {
+    const body =
+      parts.selectorsYaml ??
+      [
+        'title:',
+        '  selector: h1.title',
+        'body:',
+        "  selector: \"//div[@id='main']\"",
+        '  engine: xpath',
+        'author:',
+        '  selector: span.author',
+        '  frame:',
+        '    - iframe#cafe_main',
+      ].join('\n');
+    const prose = parts.selectorsProse ? `${parts.selectorsProse}\n\n` : '';
+    sections.push(`${selectorsHeading}\n\n${prose}\`\`\`${lang}\n${body}\n\`\`\``);
+  }
+  if (parts.rulesYaml !== null) {
+    const body = parts.rulesYaml ?? 'waitFor: h1.title\ntimeout: 15000';
+    sections.push(`${rulesHeading}\n\n\`\`\`${lang}\n${body}\n\`\`\``);
+  }
+  if (parts.outputBlock !== null && parts.outputBlock !== undefined) {
+    sections.push(`# Output\n\n${parts.outputBlock}`);
+  }
+  if (parts.extraSection) {
+    sections.push(parts.extraSection);
+  }
+  return sections.join('\n\n') + '\n';
+}
+
+function catchConfigError(fn: () => unknown): ConfigParseError {
+  try {
+    fn();
+  } catch (e) {
+    if (e instanceof ConfigParseError) return e;
+    throw new Error(`Expected ConfigParseError, got: ${(e as Error).constructor.name}`);
+  }
+  throw new Error('Expected ConfigParseError, got no throw');
+}
+
+describe('parseConfig — success', () => {
+  it('parses a full well-formed config (URL + Selectors + Rules + Output) into CrawlJob', () => {
+    const md = buildConfig({
+      outputBlock: '<!-- Phase 2 appends here -->\n\n```json\n{"prior":"run"}\n```',
+    });
+    const job: CrawlJob = parseConfig(md);
+    expect(job.url).toBe('https://cafe.naver.com/example/article/123');
+    expect(Object.keys(job.selectors).sort()).toEqual(['author', 'body', 'title']);
+    expect(job.rules.timeout).toBe(15000);
+    expect('waitFor' in job.rules).toBe(true);
+    expect(job.rules.waitFor).toBe('h1.title');
+    // Nothing from the Output section leaks through.
+    expect(Object.keys(job)).toEqual(['url', 'selectors', 'rules']);
+  });
+
+  it('engine: xpath round-trips as engine === "xpath" (CFG-03)', () => {
+    const md = buildConfig({
+      selectorsYaml: ['body:', "  selector: \"//div[@id='main']\"", '  engine: xpath'].join('\n'),
+    });
+    const job = parseConfig(md);
+    expect(job.selectors.body?.engine).toBe('xpath');
+    expect(job.selectors.body?.selector).toBe("//div[@id='main']");
+  });
+
+  it('frame array round-trips as string[] with length >= 2 (CFG-04)', () => {
+    const md = buildConfig({
+      selectorsYaml: [
+        'author:',
+        '  selector: span.name',
+        '  frame:',
+        '    - iframe#outer',
+        '    - iframe#inner',
+      ].join('\n'),
+    });
+    const job = parseConfig(md);
+    expect(job.selectors.author?.frame).toEqual(['iframe#outer', 'iframe#inner']);
+    expect(job.selectors.author?.frame?.length).toBe(2);
+  });
+
+  it('engine defaults to "css" when omitted', () => {
+    const md = buildConfig({
+      selectorsYaml: ['title:', '  selector: h1.title'].join('\n'),
+    });
+    const job = parseConfig(md);
+    expect(job.selectors.title?.engine).toBe('css');
+  });
+
+  it('rules.timeout defaults to 30000 when omitted (CFG-05)', () => {
+    const md = buildConfig({ rulesYaml: 'waitFor: h1' });
+    const job = parseConfig(md);
+    expect(job.rules.timeout).toBe(30000);
+  });
+
+  it('omits rules.waitFor key entirely when the YAML does not supply it (exactOptionalPropertyTypes)', () => {
+    const md = buildConfig({ rulesYaml: 'timeout: 5000' });
+    const job = parseConfig(md);
+    expect('waitFor' in job.rules).toBe(false);
+    expect(job.rules.timeout).toBe(5000);
+  });
+
+  it('prose around the yaml block inside # Selectors is ignored (D-02)', () => {
+    const md = buildConfig({
+      selectorsProse:
+        'Some explanatory prose that should be ignored.\nEven multiple lines.\nAnd a trailing comment line.',
+    });
+    const job = parseConfig(md);
+    expect(Object.keys(job.selectors).length).toBeGreaterThan(0);
+  });
+
+  it('ignores an unknown top-level `# Notes` section silently', () => {
+    const md = buildConfig({
+      extraSection: '# Notes\n\nJust some freeform prose the user wanted to keep.',
+    });
+    const job = parseConfig(md);
+    expect(job.url).toBe('https://cafe.naver.com/example/article/123');
+  });
+
+  it('tolerates lowercase heading casing: `# url` still matches', () => {
+    const md = buildConfig({
+      urlHeading: '# url',
+      selectorsHeading: '# selectors',
+      rulesHeading: '# rules',
+    });
+    const job = parseConfig(md);
+    expect(job.url).toBe('https://cafe.naver.com/example/article/123');
+  });
+
+  it('accepts `yml` lang tag in fenced code blocks as an alias of yaml', () => {
+    const md = buildConfig({ yamlLang: 'yml' });
+    const job = parseConfig(md);
+    expect(job.url).toBeTruthy();
+    expect(Object.keys(job.selectors).length).toBeGreaterThan(0);
+  });
+
+  it('Output section can be arbitrary / malformed without affecting parsing (D-03)', () => {
+    const md = buildConfig({
+      outputBlock: 'this is intentionally not a valid yaml\n```not-yaml\n{{{ broken\n```',
+    });
+    const job = parseConfig(md);
+    expect(job.url).toBe('https://cafe.naver.com/example/article/123');
+  });
+});
+
+describe('parseConfig — errors', () => {
+  it('throws ConfigParseError (not a generic Error) on missing URL section', () => {
+    const md = buildConfig({ url: null });
+    expect(() => parseConfig(md)).toThrowError(ConfigParseError);
+  });
+
+  it('missing `# URL` section produces EXACTLY ONE url-related issue (no duplicate Zod "url: Required")', () => {
+    const md = buildConfig({ url: null });
+    const err = catchConfigError(() => parseConfig(md));
+    const urlIssues = err.issues.filter((m) => /url/i.test(m));
+    // Exactly one structural URL issue, no derivative Zod "url: Required"/"url: invalid URL".
+    expect(urlIssues.length).toBe(1);
+    expect(urlIssues[0]).toMatch(/url/i);
+    expect(urlIssues[0]).toMatch(/missing|required/i);
+  });
+
+  it('`# URL` present but empty reports an empty-URL structural issue', () => {
+    const md = buildConfig({ url: '' });
+    const err = catchConfigError(() => parseConfig(md));
+    const urlIssues = err.issues.filter((m) => /url/i.test(m));
+    expect(urlIssues.length).toBe(1);
+    expect(urlIssues[0]).toMatch(/empty/i);
+  });
+
+  it('missing `# Selectors` section reports a structural selectors issue and no duplicate "selectors: Required" Zod issue', () => {
+    const md = buildConfig({ selectorsYaml: null });
+    const err = catchConfigError(() => parseConfig(md));
+    const selectorsIssues = err.issues.filter((m) => /selectors/i.test(m));
+    expect(selectorsIssues.length).toBe(1);
+    expect(selectorsIssues[0]).toMatch(/missing/i);
+  });
+
+  it('`# Selectors` without a fenced yaml block reports a structural "no fenced yaml block" issue', () => {
+    const md =
+      '# URL\n\nhttps://cafe.naver.com/x/1\n\n# Selectors\n\nprose only, no fence\n\n# Rules\n\n```yaml\ntimeout: 5000\n```\n';
+    const err = catchConfigError(() => parseConfig(md));
+    const selectorsIssues = err.issues.filter((m) => /selectors/i.test(m));
+    expect(selectorsIssues.length).toBe(1);
+    expect(selectorsIssues[0]).toMatch(/yaml/i);
+  });
+
+  it('invalid YAML inside `# Selectors` surfaces the yaml parse error message', () => {
+    const md = buildConfig({ selectorsYaml: '  : :\n\t--- not yaml ---\n:: broken' });
+    const err = catchConfigError(() => parseConfig(md));
+    const yamlIssues = err.issues.filter((m) => /selectors/i.test(m));
+    expect(yamlIssues.length).toBeGreaterThanOrEqual(1);
+    expect(yamlIssues[0]).toMatch(/invalid|yaml/i);
+  });
+
+  it('schema issue: engine set to "dom" produces a schema-path issue mentioning engine', () => {
+    const md = buildConfig({
+      selectorsYaml: ['title:', '  selector: h1', '  engine: dom'].join('\n'),
+    });
+    const err = catchConfigError(() => parseConfig(md));
+    const engineIssue = err.issues.find((m) => /engine/i.test(m));
+    expect(engineIssue).toBeDefined();
+  });
+
+  it('schema issue: frame given as a string (not array) produces a frame-path issue', () => {
+    const md = buildConfig({
+      selectorsYaml: ['title:', '  selector: h1', '  frame: "iframe#main"'].join('\n'),
+    });
+    const err = catchConfigError(() => parseConfig(md));
+    const frameIssue = err.issues.find((m) => /frame/i.test(m));
+    expect(frameIssue).toBeDefined();
+  });
+
+  it('unknown top-level key inside rules YAML (e.g., retries: 3) is reported (CFG-06)', () => {
+    const md = buildConfig({ rulesYaml: 'timeout: 5000\nretries: 3' });
+    const err = catchConfigError(() => parseConfig(md));
+    const rulesIssue = err.issues.find((m) => /rules/i.test(m) || /retries/i.test(m));
+    expect(rulesIssue).toBeDefined();
+  });
+
+  it('AGGREGATION: both selectors YAML AND rules YAML broken -> >= 2 issues, one per section', () => {
+    const md =
+      '# URL\n\nhttps://cafe.naver.com/x/1\n\n# Selectors\n\n```yaml\n  :::\n broken\n```\n\n# Rules\n\n```yaml\n: :\nnope\n```\n';
+    const err = catchConfigError(() => parseConfig(md));
+    expect(err.issues.length).toBeGreaterThanOrEqual(2);
+    expect(err.issues.some((m) => /selectors/i.test(m))).toBe(true);
+    expect(err.issues.some((m) => /rules/i.test(m))).toBe(true);
+  });
+
+  it('filePath propagation: parseConfig(bad, { filePath }) throws an error whose .filePath === the argument', () => {
+    const md = buildConfig({ url: null });
+    const err = catchConfigError(() => parseConfig(md, { filePath: '/tmp/x.md' }));
+    expect(err.filePath).toBe('/tmp/x.md');
+  });
+
+  it('throws ConfigParseError (uses toThrowError helper for the class assertion)', () => {
+    expect(() => parseConfig('')).toThrowError(ConfigParseError);
+  });
+
+  it('empty selectors map (valid YAML `{}`) produces a schema issue about at-least-one selector', () => {
+    const md = buildConfig({ selectorsYaml: '{}' });
+    const err = catchConfigError(() => parseConfig(md));
+    expect(err.issues.some((m) => /selectors/i.test(m))).toBe(true);
+  });
+
+  it('url section present but only whitespace -> reports as empty', () => {
+    const md = buildConfig({ url: '   \n   \n' });
+    const err = catchConfigError(() => parseConfig(md));
+    const urlIssues = err.issues.filter((m) => /url/i.test(m));
+    expect(urlIssues.length).toBe(1);
+    expect(urlIssues[0]).toMatch(/empty/i);
+  });
+});
+
+describe('parseConfigFile', () => {
+  it('happy path: reads a valid config file and returns a CrawlJob', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'crawl-io-parser-'));
+    const file = join(dir, 'job.md');
+    try {
+      await writeFile(file, buildConfig({}), 'utf8');
+      const job = await parseConfigFile(file);
+      expect(job.url).toBe('https://cafe.naver.com/example/article/123');
+      expect(Object.keys(job.selectors).length).toBeGreaterThan(0);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects with ConfigParseError when the file does not exist, preserving filePath', async () => {
+    const missing = '/does/not/exist.md';
+    await expect(parseConfigFile(missing)).rejects.toBeInstanceOf(ConfigParseError);
+    try {
+      await parseConfigFile(missing);
+    } catch (e) {
+      const err = e as ConfigParseError;
+      expect(err.filePath).toBe(missing);
+      expect(err.issues[0]).toMatch(/read|ENOENT/i);
+    }
+  });
+
+  it('propagates parseConfig errors with filePath populated when the file is malformed', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'crawl-io-parser-'));
+    const file = join(dir, 'bad.md');
+    try {
+      await writeFile(file, buildConfig({ url: null }), 'utf8');
+      await expect(parseConfigFile(file)).rejects.toBeInstanceOf(ConfigParseError);
+      try {
+        await parseConfigFile(file);
+      } catch (e) {
+        const err = e as ConfigParseError;
+        expect(err.filePath).toBe(file);
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('parser module invariants', () => {
+  it('parseConfig is a synchronous Function (NOT an AsyncFunction)', () => {
+    // Locks D-08: parseConfig must remain sync. If a future edit converts it to
+    // `async function parseConfig(...)` this test fails immediately.
+    expect(parseConfig.constructor.name).toBe('Function');
+    expect(parseConfig.constructor.name).not.toBe('AsyncFunction');
+  });
+
+  it('parseConfigFile is an AsyncFunction (its signature returns a Promise)', () => {
+    expect(parseConfigFile.constructor.name).toBe('AsyncFunction');
+  });
+
+  it('package.json has no playwright dependency (parser must not launch a browser)', () => {
+    // CFG-06 "clear error before any browser" is implicit if Phase 1 never
+    // imports browser libs. This guards against a careless future edit that
+    // adds playwright to prod deps — such a change must wait for Phase 2.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const pkg = require('../../package.json') as {
+      dependencies?: Record<string, string>;
+    };
+    const deps = Object.keys(pkg.dependencies ?? {});
+    expect(deps.includes('playwright')).toBe(false);
+    expect(deps.includes('puppeteer')).toBe(false);
+    expect(deps.includes('chromium')).toBe(false);
+  });
+});
