@@ -280,7 +280,24 @@ async function runHeadedFallback(
   // Reuse the on-disk session if one exists so a PARTIAL session (e.g., only
   // a short-lived login token) carries over; otherwise a fully fresh context.
   const seedPath = (await sessionExists(cwd)) ? sessionPath : undefined;
-  const headed = await launchHeaded(seedPath);
+  // M-01: the headless browser is already closed at this point. If the
+  // headed relaunch fails (no X server, Chromium missing headed support,
+  // display permission, etc.), the raw Playwright error otherwise escapes
+  // as `code: 'unknown'` with no hint about the remedy. Wrap in a try/catch
+  // and re-throw as CrawlError('captcha_unresolved', ...) with a message
+  // that names the captcha/headed context explicitly and runs the
+  // underlying message through scrubPaths so absolute paths don't leak.
+  let headed: AuthLaunchHandle;
+  try {
+    headed = await launchHeaded(seedPath);
+  } catch (err) {
+    const e = err as Error;
+    throw new CrawlError(
+      'captcha_unresolved',
+      'headed browser could not launch to resolve captcha: ' +
+        scrubPaths(e?.message ?? String(err)),
+    );
+  }
 
   try {
     onOpened(timeoutMs);

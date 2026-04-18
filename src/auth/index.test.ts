@@ -364,6 +364,60 @@ describe('ensureAuthenticated', () => {
     expect(launchHeadless).toHaveBeenCalledTimes(0);
   });
 
+  it('M-01: launchHeaded failure after closing headless → CrawlError(captcha_unresolved) with scrubbed message, NOT "unknown"', async () => {
+    const cwd = await makeTmpCwd();
+    // Classify as captcha so runHeadedFallback is entered.
+    const { page, browser } = makeSubmittingTrio((s) => {
+      s.url = 'https://nid.naver.com/captcha/challenge';
+    });
+
+    // Simulate "no X server / headed mode unsupported" — the thrown error
+    // contains an absolute home-dir path that must be scrubbed.
+    const launchHeaded = vi.fn(
+      async (_storage?: string): Promise<AuthLaunchHandle> => {
+        throw new Error(
+          'spawn chromium failed at /home/alice/.cache/ms-playwright/chromium',
+        );
+      },
+    );
+    const launchHeadless = vi.fn(
+      async (_storage?: string): Promise<AuthLaunchHandle> => {
+        // Never reached — runHeadedFallback should throw before the
+        // headless relaunch.
+        throw new Error('should not be called');
+      },
+    );
+
+    let thrown: unknown;
+    try {
+      await ensureAuthenticated(page, 'https://cafe.naver.com/foo', browser, {
+        env: { NAVER_ID: 'u', NAVER_PW: 'p' },
+        cwd,
+        launchHeaded,
+        launchHeadless,
+        onHeadedOpened: (): void => {
+          /* silence */
+        },
+      });
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(CrawlError);
+    const err = thrown as CrawlError;
+    // Classified specifically as captcha_unresolved (not "unknown") so the
+    // runner envelope surfaces a route the user can act on.
+    expect(err.code).toBe('captcha_unresolved');
+    // Message hints at captcha context + includes the scrubbed underlying
+    // message so a developer can still diagnose the launch failure.
+    expect(err.message).toContain('headed browser could not launch');
+    expect(err.message).toContain('captcha');
+    // scrubPaths must have run — /home/alice becomes <HOME>.
+    expect(err.message).toContain('<HOME>');
+    expect(err.message).not.toContain('/home/alice');
+    // launchHeadless must NOT be called.
+    expect(launchHeadless).toHaveBeenCalledTimes(0);
+  });
+
   it('captcha classification: triggers headed fallback — launchHeaded then launchHeadless called once each', async () => {
     const cwd = await makeTmpCwd();
     // Fake submit flips URL to a captcha path → classifyPostLogin returns 'captcha'.
