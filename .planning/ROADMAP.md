@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Config Parser** - Parse a markdown file into a validated, structured crawl job (completed 2026-04-18)
 - [x] **Phase 2: Core Crawler + Output** - Playwright extraction loop writing results back into the markdown file (completed 2026-04-18)
-- [ ] **Phase 3: Naver Auth + Session** - Login, storage-state reuse, and captcha headed fallback
+- [x] **Phase 3: Naver Auth + Session** - Login, storage-state reuse, and captcha headed fallback (completed 2026-04-18)
 - [ ] **Phase 4: CLI + Packaging** - Subcommand CLI, bin entry, TypeScript build, and npm publish readiness
 
 ## Phase Details
@@ -84,5 +84,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Config Parser | 3/3 | Complete    | 2026-04-18 |
 | 2. Core Crawler + Output | 4/4 | Complete    | 2026-04-18 |
-| 3. Naver Auth + Session | 1/3 | In Progress | - |
+| 3. Naver Auth + Session | 3/3 | Complete    | 2026-04-18 |
 | 4. CLI + Packaging | 0/TBD | Not started | - |
