@@ -80,6 +80,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Config Parser | 3/3 | Complete    | 2026-04-18 |
-| 2. Core Crawler + Output | 4/4 | Complete   | 2026-04-18 |
+| 2. Core Crawler + Output | 4/4 | Complete    | 2026-04-18 |
 | 3. Naver Auth + Session | 0/TBD | Not started | - |
 | 4. CLI + Packaging | 0/TBD | Not started | - |
