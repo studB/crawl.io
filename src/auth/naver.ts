@@ -18,6 +18,7 @@
 import type { Page } from 'playwright';
 
 import { CrawlError } from '../crawler/errors';
+import { scrubPaths } from '../crawler/output';
 
 /** Locked in 03-CONTEXT.md §Captcha / 2FA Detection & Headed Fallback. */
 export const NAVER_LOGIN_URL = 'https://nid.naver.com/nidlogin.login';
@@ -48,18 +49,20 @@ export function readNaverCredentials(
 ): NaverCredentials {
   const id = env.NAVER_ID;
   const pw = env.NAVER_PW;
-  const missing: string[] = [];
-  if (id === undefined || id.length === 0) missing.push('NAVER_ID');
-  if (pw === undefined || pw.length === 0) missing.push('NAVER_PW');
-  if (missing.length > 0) {
+  // L-01 (2026-04-18 review): consolidate the presence check into a single
+  // branch so TypeScript narrows `id` and `pw` to `string` automatically
+  // at the return site — no non-null assertions needed.
+  if (id === undefined || id.length === 0 || pw === undefined || pw.length === 0) {
+    const missing: string[] = [];
+    if (id === undefined || id.length === 0) missing.push('NAVER_ID');
+    if (pw === undefined || pw.length === 0) missing.push('NAVER_PW');
     throw new CrawlError(
       'auth_missing_credentials',
       'missing env var' + (missing.length === 1 ? '' : 's') + ': ' + missing.join(', '),
     );
   }
-  // id and pw are defined and non-empty here — narrow with non-null
-  // assertion at the return site (safe because of the checks above).
-  return { id: id!, pw: pw! };
+  // id and pw are narrowed to `string` (non-empty) via the guard above.
+  return { id, pw };
 }
 
 /**
@@ -102,9 +105,16 @@ export async function submitNaverLoginForm(
     // NEVER include creds.id or creds.pw in the error — the boundary is:
     // credentials live only in the NaverCredentials value; error messages
     // report only the operation that failed.
+    //
+    // M-05 (2026-04-18 review): run the underlying message through
+    // scrubPaths at the throw site so the redaction guarantee is local to
+    // this module and not dependent on the runner's outer catch. Playwright
+    // launch errors can surface trace-viewer / artifact paths that would
+    // otherwise travel unmasked through CrawlError.detail and any future
+    // logger in the call chain.
     throw new CrawlError(
       'auth_failed',
-      'login form submission failed: ' + (e?.message ?? String(err)),
+      scrubPaths('login form submission failed: ' + (e?.message ?? String(err))),
     );
   }
 }
