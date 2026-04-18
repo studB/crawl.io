@@ -120,7 +120,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OUT-02 | Phase 2 | Complete |
 | OUT-03 | Phase 2 | Complete |
 | OUT-04 | Phase 2 | Complete |
-| OUT-05 | Phase 2 | Pending |
+| OUT-05 | Phase 4 | Pending (split: Phase 2 delivers error envelope; Phase 4 CLI maps to process.exit) |
 | CLI-01 | Phase 4 | Pending |
 | CLI-02 | Phase 4 | Pending |
 | CLI-03 | Phase 4 | Pending |

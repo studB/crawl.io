@@ -13,7 +13,7 @@ Four phases build the crawler from the inside out. Phase 1 delivers the markdown
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Config Parser** - Parse a markdown file into a validated, structured crawl job (completed 2026-04-18)
-- [ ] **Phase 2: Core Crawler + Output** - Playwright extraction loop writing results back into the markdown file
+- [x] **Phase 2: Core Crawler + Output** - Playwright extraction loop writing results back into the markdown file (completed 2026-04-18)
 - [ ] **Phase 3: Naver Auth + Session** - Login, storage-state reuse, and captcha headed fallback
 - [ ] **Phase 4: CLI + Packaging** - Subcommand CLI, bin entry, TypeScript build, and npm publish readiness
 
@@ -47,7 +47,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 02-01-PLAN.md — Install Playwright + Chromium binary, extend .gitignore for session/artifacts, scaffold src/crawler/ type contracts (CrawlErrorCode, CrawlResult, CrawlError class + unit tests) [Wave 1]
   - [x] 02-02-PLAN.md — Pure markdown writeback (formatTimestamp, renderEntry, appendOutput, writeOutputToFile) with TDD unit tests covering append-only + success/error JSON shapes [Wave 2]
   - [x] 02-03-PLAN.md — Playwright-bound crawler modules (browser.ts, frame.ts, extract.ts) + nested-iframe HTML fixtures + integration tests for 2-level descent, CSS vs XPath, timeout mapping [Wave 2]
-  - [ ] 02-04-PLAN.md — runCrawl orchestrator wiring parser → browser → extract → writeback, crawler barrel, src/index.ts public exposure, end-to-end integration tests for happy path + two-run append + error entries [Wave 3]
+  - [x] 02-04-PLAN.md — runCrawl orchestrator wiring parser → browser → extract → writeback, crawler barrel, src/index.ts public exposure, end-to-end integration tests for happy path + two-run append + error entries [Wave 3]
 **UI hint**: no
 
 ### Phase 3: Naver Auth + Session
@@ -80,6 +80,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Config Parser | 3/3 | Complete    | 2026-04-18 |
-| 2. Core Crawler + Output | 0/4 | Planned | - |
+| 2. Core Crawler + Output | 4/4 | Complete   | 2026-04-18 |
 | 3. Naver Auth + Session | 0/TBD | Not started | - |
 | 4. CLI + Packaging | 0/TBD | Not started | - |
