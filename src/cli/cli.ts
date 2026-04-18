@@ -20,9 +20,45 @@
  * green because registerRunCommand registers ONLY the `run` subcommand.
  */
 
+import { readFileSync } from 'node:fs';
+import { resolve as resolvePath } from 'node:path';
+
 import { Command } from 'commander';
 
 import { registerRunCommand } from './run';
+
+/**
+ * Read the `version` field from the package.json shipped with this CLI.
+ *
+ * WR-02: `program.version('0.1.0')` was a string literal and would silently
+ * drift on the first `npm version patch`. Instead we read the version at
+ * runtime from the single source of truth — the `package.json` that lives
+ * one directory above the compiled `dist/cli/cli.js` (i.e., `dist/../package.json`
+ * after build, which the tarball's `files: ["dist/", ...]` + implicit
+ * package.json inclusion guarantees is the same file the user installed).
+ *
+ * We deliberately use `readFileSync` + `JSON.parse` rather than a JSON
+ * module import: this keeps `resolveJsonModule` out of tsconfig and avoids
+ * tsc copying `package.json` into `dist/` (which it would under JSON-module
+ * import with `rootDir: ./src`).
+ *
+ * The read is done once at module load. A malformed / missing file falls
+ * back to `'0.0.0'` rather than throwing — the `crawl --version` line is
+ * informational and must never break the binary.
+ */
+function readPackageVersion(): string {
+  try {
+    const pkgPath = resolvePath(__dirname, '..', '..', 'package.json');
+    const raw = readFileSync(pkgPath, 'utf8');
+    const parsed = JSON.parse(raw) as { version?: unknown };
+    if (typeof parsed.version === 'string' && parsed.version.length > 0) {
+      return parsed.version;
+    }
+    return '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
 
 /**
  * Build the top-level `crawl` commander program.
@@ -37,7 +73,7 @@ export function buildProgram(): Command {
     .description(
       'Markdown-configured web crawler — one .md file fully describes a crawl job and carries its own results.',
     )
-    .version('0.1.0');
+    .version(readPackageVersion());
 
   registerRunCommand(program);
 
