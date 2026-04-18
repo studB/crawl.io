@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-04-18T02:28:48.279Z"
-last_activity: 2026-04-18 -- Phase 2 planning complete
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-04-18T02:35:12.130Z"
+last_activity: 2026-04-18 -- 02-02-PLAN.md complete (markdown output writeback; 19/19 tests green)
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 7
-  completed_plans: 4
-  percent: 57
+  completed_plans: 5
+  percent: 71
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-18)
 ## Current Position
 
 Phase: 2
-Plan: 02 (02-02-PLAN.md — markdown output writeback, Wave 2)
-Status: 02-01-PLAN.md complete; ready for Wave 2 (02-02 + 02-03 parallelizable)
-Last activity: 2026-04-18 -- 02-01-PLAN.md complete (Playwright install + crawler type contracts)
+Plan: 03 (02-03-PLAN.md — browser/frame/extract, Wave 2)
+Status: 02-02-PLAN.md complete; Wave 2 continues with 02-03 (or 02-04 after 02-03)
+Last activity: 2026-04-18 -- 02-02-PLAN.md complete (markdown output writeback; 19/19 tests green)
 
-Progress: [██████░░░░] 57%
+Progress: [███████░░░] 71%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [██████░░░░] 57%
 | Phase 01-config-parser P02 | 3 min | 2 tasks | 6 files |
 | Phase 01-config-parser P03 | 5 min | 2 tasks | 4 files |
 | Phase 02-core-crawler-output P01 | 4 min | 2 tasks | 7 files |
+| Phase 02-core-crawler-output P02 | 3min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,8 @@ Recent decisions affecting current work:
 - [Phase 02-core-crawler-output]: playwright in dependencies (not devDep) — crawler imports it at runtime; no postinstall in this plan (Phase 4 packaging concern); types layer (src/crawler/types.ts + errors.ts) kept free of playwright imports
 - [Phase 02-core-crawler-output]: CrawlError.message format '[code] detail' (or '[code]' when detail omitted); declare readonly detail?: string + conditional assignment mirrors ConfigParseError for exactOptionalPropertyTypes compliance
 - [Phase 02-core-crawler-output]: CrawlResult error shape locked as { code, message, stack? } per 02-CONTEXT.md; stack populated by runCrawl from Error.stack
+- [Phase 02-core-crawler-output]: 02-02 locks on-disk run entry shape: em-dash H2 heading + italic meta line + fenced json block; success shape { fields, meta }, error shape { error: { code, message, stack? }, meta }; appendOutput is EOF-append with # Output header detect only to avoid duplication
+- [Phase 02-core-crawler-output]: fs errors from writeOutputToFile propagate unchanged — Plan 02-04 runner is the single point that wraps into CrawlError; keeps output.ts pure and free of error-classification coupling
 
 ### Pending Todos
 
@@ -97,6 +100,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-18T02:28:40.808Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-04-18T02:34:46.287Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
