@@ -8,30 +8,42 @@ A TypeScript CLI web crawler configured entirely through markdown files. Each ma
 
 **One markdown file fully describes a crawl job and carries its own results.** The config, the selectors, and the extracted data live in the same file — a crawler run is just "open file, read job, run Playwright, append result section, save." Everything else (the CLI, iframe traversal, login session, error handling) exists to make that loop reliable for a real Naver Cafe page.
 
+## Current State
+
+v1.0 shipped 2026-04-18. 4 phases, 13 plans, 30 tasks, 2,479 LOC of production TypeScript, 221 passing tests + 6 gated. `npm pack`/`publish --dry-run` green, `crawl run <file.md>` working, Naver Cafe login + session reuse + captcha headed fallback wired. Known tech debt tracked in `v1.0-MILESTONE-AUDIT.md`: 3 human UAT items for live Naver (deferred), tarball includes compiled test files (bloat), and `repository`/`bugs`/`homepage` URLs were removed (user must add before real `npm publish`).
+
+## Next Milestone Goals
+
+No next milestone started yet. Run `/gsd-new-milestone` when ready. Likely v1.1 candidates based on REQUIREMENTS.md v2 list:
+- Auto-comment agent (AGENT-01..03) — original v2 goal
+- Pagination / listing→detail crawling (CRWL2-01..02)
+- `crawl init` / `crawl validate` subcommands (CLI2-01..02)
+- Tarball tightening + real repo URLs (v1.0 tech debt)
+
 ## Requirements
 
 ### Validated
 
 <!-- Shipped and confirmed valuable. -->
 
-(None yet — ship to validate)
+- ✓ Parse a markdown config file into a structured crawl job (URL, selectors, rules) — v1.0
+- ✓ Crawl a single page with Playwright using the parsed job — v1.0
+- ✓ Support CSS and XPath selectors with multiple named fields per job — v1.0
+- ✓ Descend into nested iframes when the config specifies an explicit frame path — v1.0 (2-level verified)
+- ✓ Honor `waitFor` and `timeout` rules before extracting — v1.0
+- ✓ Log into Naver with credentials from `NAVER_ID` / `NAVER_PW` env vars — v1.0 (automated; live UAT deferred)
+- ✓ Persist browser storage state to `.crawl-session.json` and reuse across runs — v1.0 (live UAT deferred)
+- ✓ Open a headed browser for manual resolve when captcha / 2FA is detected, then save the session and continue — v1.0 (live UAT deferred)
+- ✓ Append extracted data to the markdown file's Output section as fenced JSON with a timestamp header — v1.0
+- ✓ Write error details to Output and exit non-zero on failure — v1.0
+- ✓ Ship `crawl run <file.md>` as the primary CLI command (subcommand style) — v1.0
+- ✓ Publish the tool as an installable npm package — v1.0 (`npm publish --dry-run` green)
 
 ### Active
 
 <!-- Current scope. Building toward these. -->
 
-- [ ] Parse a markdown config file into a structured crawl job (URL, selectors, rules)
-- [ ] Crawl a single page with Playwright using the parsed job
-- [ ] Support CSS and XPath selectors with multiple named fields per job
-- [ ] Descend into nested iframes when the config specifies an explicit frame path
-- [ ] Honor `waitFor` and `timeout` rules before extracting
-- [ ] Log into Naver with credentials from `NAVER_ID` / `NAVER_PW` env vars
-- [ ] Persist browser storage state to `.crawl-session.json` and reuse across runs
-- [ ] Open a headed browser for manual resolve when captcha / 2FA is detected, then save the session and continue
-- [ ] Append extracted data to the markdown file's Output section as fenced JSON with a timestamp header
-- [ ] Write error details to Output and exit non-zero on failure (timeout, selector miss, network error)
-- [ ] Ship `crawl run <file.md>` as the primary CLI command (subcommand style, room for `init`/`validate`/`list` later)
-- [ ] Publish the tool as an installable npm package
+(None — v1.0 shipped. Define v1.1 scope via `/gsd-new-milestone`.)
 
 ### Out of Scope
 
@@ -73,19 +85,25 @@ A TypeScript CLI web crawler configured entirely through markdown files. Each ma
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| TypeScript + Node 20 LTS + Playwright | User-specified stack; Playwright is needed for iframe + login support | — Pending |
-| One markdown file = one crawl job | Keeps the output-append model (results live in the same file as the config) coherent | — Pending |
-| Markdown sections (not YAML frontmatter) for config | User preferred readable `# URL` / `# Selectors` / `# Output` headings over a frontmatter block | — Pending |
-| Explicit frame path in config for iframes | Naver Cafe nests iframes — being explicit avoids ambiguous auto-descent misses | — Pending |
-| Output as fenced JSON appended with timestamp | Keeps history for each run; fenced JSON is trivial to re-parse downstream | — Pending |
-| Errors written to Output + non-zero exit code | User sees the failure in the same place results normally land; CI / scripts still detect failure via exit code | — Pending |
-| Env vars `NAVER_ID` / `NAVER_PW` for credentials | Never put credentials in markdown (could leak to git); env vars are the most portable option | — Pending |
-| Save Playwright storage state, reuse until expired | Avoids re-login + captcha churn every run | — Pending |
-| Headed browser fallback for captcha / 2FA | Naver captcha is unavoidable at times; the only realistic path is a visible browser for manual resolve, then save session | — Pending |
-| `crawl run <file.md>` subcommand shape | Leaves verb-space for `init`, `validate`, `list` later without restructuring CLI | — Pending |
-| Publish to npm | User wants the tool installable; defines build + bin + packaging shape | — Pending |
-| Test against real Naver Cafe pages | User's explicit choice — accept brittleness in exchange for real-world behavior fidelity | ⚠️ Revisit |
-| Agent that auto-comments cafe content is v2 | Keeps POC scope tight; crawler ships first, agent consumes its output later | — Pending |
+| TypeScript + Node 20 LTS + Playwright | User-specified stack; Playwright is needed for iframe + login support | ✓ Good (v1.0) |
+| One markdown file = one crawl job | Keeps the output-append model (results live in the same file as the config) coherent | ✓ Good (v1.0) |
+| Markdown sections (not YAML frontmatter) for config | User preferred readable `# URL` / `# Selectors` / `# Rules` / `# Output` headings over a frontmatter block | ✓ Good (v1.0) |
+| Explicit frame path in config for iframes | Naver Cafe nests iframes — being explicit avoids ambiguous auto-descent misses | ✓ Good (v1.0 — 2-level verified) |
+| Output as fenced JSON appended with timestamp | Keeps history for each run; fenced JSON is trivial to re-parse downstream | ✓ Good (v1.0) |
+| Errors written to Output + non-zero exit code | User sees the failure in the same place results normally land; CI / scripts still detect failure via exit code | ✓ Good (v1.0 — OUT-05 split: envelope Phase 2, exit Phase 4) |
+| Env vars `NAVER_ID` / `NAVER_PW` for credentials | Never put credentials in markdown (could leak to git); env vars are the most portable option | ✓ Good (v1.0) |
+| Save Playwright storage state, reuse until expired | Avoids re-login + captcha churn every run | ✓ Good (v1.0 — live UAT deferred) |
+| Headed browser fallback for captcha / 2FA | Naver captcha is unavoidable at times; the only realistic path is a visible browser for manual resolve, then save session | ✓ Good (v1.0 — non-interactive polling, 5-min ceiling, live UAT deferred) |
+| `crawl run <file.md>` subcommand shape | Leaves verb-space for `init`, `validate`, `list` later without restructuring CLI | ✓ Good (v1.0 — commander) |
+| Publish to npm | User wants the tool installable; defines build + bin + packaging shape | ✓ Good (v1.0 — `npm publish --dry-run` green; user must add repo URLs before real publish) |
+| Test against real Naver Cafe pages | User's explicit choice — accept brittleness in exchange for real-world behavior fidelity | ⚠️ Revisit (v1.0 deferred live tests to UAT; local fixtures used for Phase 2 iframe mechanism per in-phase carve-out) |
+| Agent that auto-comments cafe content is v2 | Keeps POC scope tight; crawler ships first, agent consumes its output later | — Pending (v2) |
+| Pin `unified@^9` + `remark-parse@^9` (v1.0) | Node 20 LTS + commonjs + module:nodenext cannot `require()` the ESM-only v10+ majors; v9 keeps `parseConfig` sync | ✓ Good (v1.0) |
+| `declare readonly` for optional class fields (v1.0) | Under target:esnext + useDefineForClassFields:true, bare class fields emit `Object.defineProperty` at construction; `declare` suppresses emission so `'foo' in err === false` holds | ✓ Good (v1.0 — ConfigParseError, CrawlError) |
+| Zod v4 schemas in `src/config/schema.ts` (v1.0) | TS-first validation with aggregated-error support; `canValidate` gate suppresses duplicate Zod "required" errors when structural pieces are missing | ✓ Good (v1.0) |
+| Non-interactive captcha polling with 5-min ceiling (v1.0) | No stdin/readline — user never presses Enter; success detected via cookie polling; `CRAWL_HEADED_TIMEOUT_MS` env var overrides | ✓ Good (v1.0) |
+| `scrubPaths` helper for error redaction (v1.0) | Universal application across all stderr emission sites prevents leaking home paths / usernames in committed markdown or CLI output | ✓ Good (v1.0 — enforced in code review) |
+| Atomic session writes via tmp + rename (v1.0) | Non-atomic writes leave corrupt session files on crash; tmp + rename + validator-on-read makes expired/malformed sessions self-healing | ✓ Good (v1.0) |
 
 ## Evolution
 
@@ -105,4 +123,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-18 after initialization*
+*Last updated: 2026-04-18 after v1.0 milestone*
