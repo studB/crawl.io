@@ -8,9 +8,9 @@
  * Timeout semantics:
  *   - `rules.timeout` (config) is the page-load / waitFor budget — passed by the Plan-04
  *     runner to `page.goto` and to `waitForReady` here.
- *   - Per-field extraction uses a tight 5000ms internal cap (EXTRACT_TIMEOUT_MS). A rendered
- *     page should return text in well under a second; keeping extraction isolated from the
- *     (much larger) page-load budget gives cleaner error attribution.
+ *   - Per-field extraction uses a tight internal cap (DEFAULT_DEFAULT_EXTRACT_TIMEOUT_MS, 5000ms).
+ *     A rendered page should return text in well under a second; keeping extraction isolated
+ *     from the (much larger) page-load budget gives cleaner error attribution.
  *
  * Error classification when a per-field extraction call times out:
  *   - `spec.frame` declared and non-empty → `frame_not_found` (a frame along the path is
@@ -25,8 +25,18 @@ import type { SelectorSpec } from '../config/types';
 import { CrawlError } from './errors';
 import { descendToFrame } from './frame';
 
-/** Internal per-field extraction budget. Separate from `rules.timeout`. */
-const EXTRACT_TIMEOUT_MS = 5000;
+/**
+ * Default per-field extraction budget (ms). Intentionally decoupled from
+ * `rules.timeout` (which is the page-load / waitFor budget) — a rendered page
+ * should return text in well under a second, so 5000ms is a generous ceiling
+ * that still gives crisp error attribution when a selector truly misses.
+ *
+ * Exported (LW-02) so the runner JSDoc and any Phase-3 config surface can
+ * reference the concrete value instead of repeating the magic number.
+ * Renamed from `EXTRACT_TIMEOUT_MS` so the "default" nature is explicit at
+ * the call site.
+ */
+export const DEFAULT_EXTRACT_TIMEOUT_MS = 5000;
 
 /**
  * Compose the Playwright selector string for a given `SelectorSpec`.
@@ -100,7 +110,7 @@ export async function extractFields(
 
     try {
       const locator = target.locator(pwSelector);
-      const text = await locator.first().textContent({ timeout: EXTRACT_TIMEOUT_MS });
+      const text = await locator.first().textContent({ timeout: DEFAULT_EXTRACT_TIMEOUT_MS });
       if (text === null) {
         const detail = 'selector `' + spec.selector + '` for field `' + name + '` returned null';
         throw new CrawlError('selector_miss', detail);
@@ -119,7 +129,7 @@ export async function extractFields(
         }
         const detail =
           'selector `' + spec.selector + '` for field `' + name +
-          '` did not match within ' + EXTRACT_TIMEOUT_MS + 'ms';
+          '` did not match within ' + DEFAULT_EXTRACT_TIMEOUT_MS + 'ms';
         throw new CrawlError('selector_miss', detail);
       }
       const detail = 'failed to extract `' + name + '`: ' + (e?.message ?? String(err));
