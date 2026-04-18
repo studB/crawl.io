@@ -1,21 +1,45 @@
 {
   "name": "crawl.io",
   "version": "0.1.0",
-  "description": "",
-  "license": "ISC",
+  "description": "Markdown-configured Playwright web crawler — one .md file describes a crawl job and carries its own results back in the same file.",
+  "keywords": [
+    "crawler",
+    "playwright",
+    "naver",
+    "markdown",
+    "cli"
+  ],
+  "license": "MIT",
   "author": "",
   "type": "commonjs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "crawl": "./dist/bin/crawl.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "files": [
-    "dist"
+    "dist/",
+    "README.md",
+    "LICENSE"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TBD/crawl.io.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TBD/crawl.io/issues"
+  },
+  "homepage": "https://github.com/TBD/crawl.io#readme",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "postbuild": "node -e \"const fs=require('fs'),p='dist/bin/crawl.js',c=fs.readFileSync(p,'utf8');if(!c.startsWith('#!'))fs.writeFileSync(p,'#!/usr/bin/env node\\n'+c);fs.chmodSync(p,0o755);\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "commander": "^12.1.0",
