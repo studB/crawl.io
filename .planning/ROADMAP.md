@@ -67,13 +67,16 @@ Decimal phases appear between their surrounding integers in numeric order.
 ### Phase 4: CLI + Packaging
 **Goal**: The tool is invokable as `crawl run <file.md>` from any terminal after `npm install -g`, ships with help text, and is publishable to npm
 **Depends on**: Phase 3
-**Requirements**: CLI-01, CLI-02, CLI-03, CLI-04, CLI-05
+**Requirements**: CLI-01, CLI-02, CLI-03, CLI-04, CLI-05, OUT-05 (exit-code half, split from Phase 2)
 **Success Criteria** (what must be TRUE):
   1. `crawl run <file.md>` executes a full crawl job and exits; `crawl --help` and `crawl run --help` both print usage that includes the argument shape and required env vars
   2. The subcommand structure allows a second verb (e.g., `crawl validate`) to be added in future without changing the top-level interface
   3. `npm pack` produces a tarball with a working `bin` entry that resolves the `crawl` command after `npm install -g`
   4. `npm publish` succeeds against the registry (or a dry run passes): package includes compiled JS, type declarations, and no TypeScript source errors under strict mode
-**Plans**: TBD
+**Plans**: 3 plans
+  - [ ] 04-01-PLAN.md — Install commander + scaffold src/cli/ + src/bin/crawl.ts + exit-code mapper with unit tests [Wave 1]
+  - [ ] 04-02-PLAN.md — Finalize package.json (bin, files, engines, keywords, license MIT) + README.md + LICENSE + .gitattributes [Wave 2]
+  - [ ] 04-03-PLAN.md — CLI integration tests (spawn dist/bin/crawl.js) + npm pack --dry-run + tarball extract + npm publish --dry-run gate [Wave 3]
 
 ## Progress
 
@@ -85,4 +88,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Config Parser | 3/3 | Complete    | 2026-04-18 |
 | 2. Core Crawler + Output | 4/4 | Complete    | 2026-04-18 |
 | 3. Naver Auth + Session | 3/3 | Complete    | 2026-04-18 |
-| 4. CLI + Packaging | 0/TBD | Not started | - |
+| 4. CLI + Packaging | 0/3 | Planned | - |
