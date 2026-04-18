@@ -35,6 +35,9 @@ describe('CrawlError', () => {
       'frame_not_found',
       'extraction_failed',
       'config_parse',
+      'auth_missing_credentials',
+      'auth_failed',
+      'captcha_unresolved',
       'unknown',
     ];
     for (const code of codes) {
@@ -42,6 +45,8 @@ describe('CrawlError', () => {
       expect(err.code).toBe(code);
       expect(err).toBeInstanceOf(CrawlError);
     }
+    // Lock the union size so accidentally removing a variant fails the test.
+    expect(codes).toHaveLength(10);
   });
 
   it('has the CrawlError prototype wired via Object.setPrototypeOf for cross-realm instanceof', () => {

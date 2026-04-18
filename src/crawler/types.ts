@@ -5,6 +5,9 @@ export type CrawlErrorCode =
   | 'frame_not_found'
   | 'extraction_failed'
   | 'config_parse'
+  | 'auth_missing_credentials'
+  | 'auth_failed'
+  | 'captcha_unresolved'
   | 'unknown';
 
 export interface CrawlResult {
