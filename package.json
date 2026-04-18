@@ -12,6 +12,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "postbuild": "node -e \"const fs=require('fs'),p='dist/bin/crawl.js',c=fs.readFileSync(p,'utf8');if(!c.startsWith('#!'))fs.writeFileSync(p,'#!/usr/bin/env node\\n'+c);fs.chmodSync(p,0o755);\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
