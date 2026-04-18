@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 03-03-PLAN.md — Phase 3 ready for verification
-last_updated: "2026-04-18T08:06:37.362Z"
-last_activity: 2026-04-18
+status: executing
+stopped_at: Completed 04-01-PLAN.md — CLI scaffold + commander + shebang entry landed
+last_updated: "2026-04-18T08:37:20.591Z"
+last_activity: 2026-04-18 -- Phase 4 planning complete
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 10
-  completed_plans: 10
-  percent: 100
+  total_plans: 13
+  completed_plans: 11
+  percent: 85
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-18)
 ## Current Position
 
 Phase: 4
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-04-18
+Plan: 04-02 (next)
+Status: In Progress
+Last activity: 2026-04-18 -- Completed 04-01 CLI scaffold + commander + shebang entry
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 85%
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Progress: [████████░░] 80%
 | Phase 03-naver-auth-session P01 | 2 min | 2 tasks | 4 files |
 | Phase 03-naver-auth-session P02 | 4 min | 3 tasks | 6 files |
 | Phase 03-naver-auth-session P03 | 7min | 3 tasks | 5 files |
+| Phase 04-cli-packaging P01 | 7min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -105,6 +106,10 @@ Recent decisions affecting current work:
 - [Phase 03-naver-auth-session]: Stale-session + no-creds proceeds (runner goto surfaces redirect); only no-session + no-creds throws auth_missing_credentials
 - [Phase 03-naver-auth-session]: Runner auth tests use vi.mock at module boundary (../auth/*, ./browser, ./extract) so no real Chromium launch
 - [Phase 03-naver-auth-session]: Integration tests gated by RUN_NAVER_TESTS=1 + NAVER_ID/NAVER_PW; tmpdir-chdir pattern protects repo-root session file
+- [Phase 04-cli-packaging]: 04-01: resolveExitCode is a pure function in src/cli/exit.ts returning the literal union 0|1; centralizes OUT-05 and is grep-gated for purity (no process.exit / console. / fs. in the file)
+- [Phase 04-cli-packaging]: 04-01: runHandler uses RunDeps dependency injection (runCrawl+stdout+stderr+pathExists) and never calls process.exit itself — only registerRunCommand's commander action wrapper does; asserted to exactly 1 occurrence of process.exit in src/cli/run.ts
+- [Phase 04-cli-packaging]: 04-01: CLI imports runCrawl from the public barrel ../index (never ../crawler/runner directly) to preserve CLI-02 extension axis; commander v12 addHelpText('after',...) renders only via outputHelp (not helpInformation), tests capture via configureOutput writer
+- [Phase 04-cli-packaging]: 04-01: Postbuild script chmods dist/bin/crawl.js to 0755 (tsc emits 0644) and prepends shebang if missing — belt-and-suspenders; verified tsc 6.x preserves leading #! line natively; Rule-3 deviation from plan explicit template
 
 ### Pending Todos
 
@@ -122,6 +127,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-18T06:47:55.505Z
-Stopped at: Completed 03-03-PLAN.md — Phase 3 ready for verification
+Last session: 2026-04-18T08:37:20.586Z
+Stopped at: Completed 04-01-PLAN.md — CLI scaffold + commander + shebang entry landed
 Resume file: None

@@ -74,7 +74,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `npm pack` produces a tarball with a working `bin` entry that resolves the `crawl` command after `npm install -g`
   4. `npm publish` succeeds against the registry (or a dry run passes): package includes compiled JS, type declarations, and no TypeScript source errors under strict mode
 **Plans**: 3 plans
-  - [ ] 04-01-PLAN.md — Install commander + scaffold src/cli/ + src/bin/crawl.ts + exit-code mapper with unit tests [Wave 1]
+  - [x] 04-01-PLAN.md — Install commander + scaffold src/cli/ + src/bin/crawl.ts + exit-code mapper with unit tests [Wave 1]
   - [ ] 04-02-PLAN.md — Finalize package.json (bin, files, engines, keywords, license MIT) + README.md + LICENSE + .gitattributes [Wave 2]
   - [ ] 04-03-PLAN.md — CLI integration tests (spawn dist/bin/crawl.js) + npm pack --dry-run + tarball extract + npm publish --dry-run gate [Wave 3]
 

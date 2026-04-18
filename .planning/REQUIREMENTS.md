@@ -41,13 +41,13 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **OUT-02**: Each entry includes a human-readable timestamp (e.g., `_Last run: 2026-04-18 10:22_`) and a count of extracted items
 - [x] **OUT-03**: Extracted data is written as a fenced ```json code block inside the entry, parseable by any JSON reader
 - [x] **OUT-04**: On failure (timeout, selector miss, network error, login error) the crawler writes an error entry to `# Output` with error type and message instead of results
-- [ ] **OUT-05**: The process exits with a non-zero code on any failure so shells and schedulers detect it
+- [x] **OUT-05**: The process exits with a non-zero code on any failure so shells and schedulers detect it
 
 ### CLI (command shape + packaging)
 
-- [ ] **CLI-01**: `crawl run <file.md>` runs a single crawl job from the given markdown file and exits
-- [ ] **CLI-02**: The CLI uses a subcommand structure so future verbs (`init`, `validate`, `list`) can be added without breaking the top-level interface
-- [ ] **CLI-03**: `crawl --help` and `crawl run --help` print usage showing the argument shape and required env vars
+- [x] **CLI-01**: `crawl run <file.md>` runs a single crawl job from the given markdown file and exits
+- [x] **CLI-02**: The CLI uses a subcommand structure so future verbs (`init`, `validate`, `list`) can be added without breaking the top-level interface
+- [x] **CLI-03**: `crawl --help` and `crawl run --help` print usage showing the argument shape and required env vars
 - [ ] **CLI-04**: `package.json` declares a `bin` entry that resolves the `crawl` command after installation
 - [ ] **CLI-05**: The package builds with TypeScript (Node 20 LTS target) and is publishable to npm via `npm publish`
 
@@ -121,9 +121,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OUT-03 | Phase 2 | Complete |
 | OUT-04 | Phase 2 | Complete |
 | OUT-05 | Phase 4 | Pending (split: Phase 2 delivers error envelope; Phase 4 CLI maps to process.exit) |
-| CLI-01 | Phase 4 | Pending |
-| CLI-02 | Phase 4 | Pending |
-| CLI-03 | Phase 4 | Pending |
+| CLI-01 | Phase 4 | Complete |
+| CLI-02 | Phase 4 | Complete |
+| CLI-03 | Phase 4 | Complete |
 | CLI-04 | Phase 4 | Pending |
 | CLI-05 | Phase 4 | Pending |
 
