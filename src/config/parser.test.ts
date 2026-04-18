@@ -284,6 +284,16 @@ describe('parseConfig — errors', () => {
     expect(urlIssues[0]).toMatch(/empty/i);
   });
 
+  it('duplicate `# URL` headings are flagged (first-wins) with a duplicate-labeled issue (MR-02)', () => {
+    // Two `# URL` headings in the same file: the first wins, the duplicate
+    // is reported so the user notices leftover / pasted sections.
+    const md =
+      '# URL\n\nhttps://cafe.naver.com/first/1\n\n# URL\n\nhttps://cafe.naver.com/second/2\n\n# Selectors\n\n```yaml\ntitle:\n  selector: h1\n```\n\n# Rules\n\n```yaml\ntimeout: 5000\n```\n';
+    const err = catchConfigError(() => parseConfig(md));
+    const dupIssue = err.issues.find((m) => /duplicate/i.test(m) && /url/i.test(m));
+    expect(dupIssue).toBeDefined();
+  });
+
   it('missing `# URL` produces exactly one url-tagged "missing" issue — tagged-dedup not substring-dedup (MR-04)', () => {
     // Guards against regression to substring-based dedup: the new
     // tagged-dedup path emits exactly one url-bearing issue whose wording

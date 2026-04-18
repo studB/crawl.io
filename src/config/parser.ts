@@ -63,6 +63,11 @@ function splitSections(tree: Root): {
   }
   h1Indices.push(children.length);
 
+  // Track seen known-section headings to enforce first-wins on duplicates
+  // (MR-02). A config with two `# URL` sections should not silently last-win;
+  // we keep the first occurrence and surface the duplicate as an issue.
+  const seen = new Set<string>();
+
   for (let h = 0; h < h1Indices.length - 1; h++) {
     const start = h1Indices[h] as number;
     const end = h1Indices[h + 1] as number;
@@ -70,6 +75,27 @@ function splitSections(tree: Root): {
     const headingName = readHeadingName(heading);
     if (!KNOWN_SECTIONS.has(headingName)) continue; // silently ignore unknown H1s
     if (headingName === 'output') continue; // Phase 1 ignores Output (D-03)
+    if (seen.has(headingName)) {
+      const label =
+        headingName === 'url'
+          ? 'URL'
+          : headingName.charAt(0).toUpperCase() + headingName.slice(1);
+      const issue: StructuralIssue = {
+        message: `duplicate \`# ${label}\` section (only the first is used)`,
+      };
+      // Tag the issue with its originating required key when applicable,
+      // so the tagged-dedup loop below treats it as "already reported".
+      if (
+        headingName === 'url' ||
+        headingName === 'selectors' ||
+        headingName === 'rules'
+      ) {
+        issue.key = headingName;
+      }
+      issues.push(issue);
+      continue;
+    }
+    seen.add(headingName);
     const body = children.slice(start + 1, end);
 
     if (headingName === 'url') {
