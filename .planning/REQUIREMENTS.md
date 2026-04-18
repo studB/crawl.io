@@ -18,7 +18,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Crawling (Playwright single-page extraction)
 
-- [ ] **CRWL-01**: Crawler launches Playwright (Chromium) and navigates to the configured URL
+- [x] **CRWL-01**: Crawler launches Playwright (Chromium) and navigates to the configured URL
 - [ ] **CRWL-02**: Crawler waits for the `waitFor` selector (scoped to the correct frame) before extracting
 - [ ] **CRWL-03**: Crawler aborts cleanly when the page or `waitFor` condition exceeds the configured `timeout`
 - [ ] **CRWL-04**: Crawler resolves CSS selectors against the top-level page or the declared frame
@@ -103,7 +103,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CFG-04 | Phase 1 | Complete |
 | CFG-05 | Phase 1 | Complete |
 | CFG-06 | Phase 1 | Complete |
-| CRWL-01 | Phase 2 | Pending |
+| CRWL-01 | Phase 2 | Complete |
 | CRWL-02 | Phase 2 | Pending |
 | CRWL-03 | Phase 2 | Pending |
 | CRWL-04 | Phase 2 | Pending |
