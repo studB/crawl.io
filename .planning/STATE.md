@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-02-PLAN.md — package.json publish metadata + README + MIT LICENSE + .gitattributes landed
-last_updated: "2026-04-18T08:49:24.199Z"
+stopped_at: Completed 04-03-PLAN.md — CLI + pack integration tests (9 new, 220+6 suite); Phase 4 publish-readiness gate proven end-to-end
+last_updated: "2026-04-18T09:01:17.087Z"
 last_activity: 2026-04-18 -- Completed 04-02 packaging metadata + README + LICENSE
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 13
-  completed_plans: 12
-  percent: 92
+  completed_plans: 13
+  percent: 100
 ---
 
 # Project State
@@ -65,6 +65,7 @@ Progress: [█████████░] 92%
 | Phase 03-naver-auth-session P03 | 7min | 3 tasks | 5 files |
 | Phase 04-cli-packaging P01 | 7min | 3 tasks | 8 files |
 | Phase 04-cli-packaging P02 | 8min | 3 tasks | 4 files |
+| Phase 04-cli-packaging P03 | 7min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -116,6 +117,10 @@ Recent decisions affecting current work:
 - [Phase 04-cli-packaging]: 04-02: prepack script runs npm run build (which chains through postbuild chmod 0755); every npm pack ships a freshly compiled, 0755, shebang-correct bin — eliminates stale-dist bugs at publish time
 - [Phase 04-cli-packaging]: 04-02: .gitattributes has globbed (*.js eol=lf) AND explicit (dist/bin/crawl.js eol=lf) rules — redundant-on-purpose; documents T-04-06 intent and survives glob narrowing by future contributors
 - [Phase 04-cli-packaging]: 04-02: LICENSE copyright uses 'crawl.io contributors' (not a specific name) since package.json.author is deliberately empty per CONTEXT.md 'left as user-settable' — keeps MIT notice legally complete while leaving attribution slot open
+- [Phase 04-cli-packaging]: 04-03: Companion verbose test with existing-broken config — plan Test 6 assumed arrow fires on pre-flight miss, but runHandler short-circuits before the verbose block; split into missing-file test (asserts config not found:) + existing-broken test (asserts → arrow, parsing, config_parse). Coverage strictly stronger without src/ edits
+- [Phase 04-cli-packaging]: 04-03: NODE_PATH shim for extracted-tarball bin smoke test — NODE_PATH=$(repo)/node_modules lets commander resolve when running tarball-extracted bin without npm install inside the extract; test purpose is shebang+bin integrity, not reproducing npm install -g mechanics
+- [Phase 04-cli-packaging]: 04-03: Combined stdout+stderr assertions for npm publish --dry-run — npm 10+ emits tarball manifest on stdout but the 'requires you to be logged in (dry-run)' warning on stderr; testing against combined content is stable across npm minor versions that rebalance streams
+- [Phase 04-cli-packaging]: 04-03: Tarball filename matched via /crawl\.io-\d+\.\d+\.\d+\.tgz/ regex rather than frozen literal — future version bumps don't need test edits; acceptance locks content not version number
 
 ### Pending Todos
 
@@ -133,6 +138,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-18T08:49:24.195Z
-Stopped at: Completed 04-02-PLAN.md — package.json publish metadata + README + MIT LICENSE + .gitattributes landed
+Last session: 2026-04-18T09:01:17.082Z
+Stopped at: Completed 04-03-PLAN.md — CLI + pack integration tests (9 new, 220+6 suite); Phase 4 publish-readiness gate proven end-to-end
 Resume file: None

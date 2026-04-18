@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Config Parser** - Parse a markdown file into a validated, structured crawl job (completed 2026-04-18)
 - [x] **Phase 2: Core Crawler + Output** - Playwright extraction loop writing results back into the markdown file (completed 2026-04-18)
 - [x] **Phase 3: Naver Auth + Session** - Login, storage-state reuse, and captcha headed fallback (completed 2026-04-18)
-- [ ] **Phase 4: CLI + Packaging** - Subcommand CLI, bin entry, TypeScript build, and npm publish readiness
+- [x] **Phase 4: CLI + Packaging** - Subcommand CLI, bin entry, TypeScript build, and npm publish readiness (completed 2026-04-18)
 
 ## Phase Details
 
@@ -76,7 +76,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
   - [x] 04-01-PLAN.md — Install commander + scaffold src/cli/ + src/bin/crawl.ts + exit-code mapper with unit tests [Wave 1]
   - [x] 04-02-PLAN.md — Finalize package.json (bin, files, engines, keywords, license MIT) + README.md + LICENSE + .gitattributes [Wave 2]
-  - [ ] 04-03-PLAN.md — CLI integration tests (spawn dist/bin/crawl.js) + npm pack --dry-run + tarball extract + npm publish --dry-run gate [Wave 3]
+  - [x] 04-03-PLAN.md — CLI integration tests (spawn dist/bin/crawl.js) + npm pack --dry-run + tarball extract + npm publish --dry-run gate [Wave 3]
 
 ## Progress
 
@@ -88,4 +88,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Config Parser | 3/3 | Complete    | 2026-04-18 |
 | 2. Core Crawler + Output | 4/4 | Complete    | 2026-04-18 |
 | 3. Naver Auth + Session | 3/3 | Complete    | 2026-04-18 |
-| 4. CLI + Packaging | 2/3 | In Progress | - |
+| 4. CLI + Packaging | 3/3 | Complete    | 2026-04-18 |
