@@ -30,6 +30,13 @@ interface FakeState {
   cookies: CookieRecord[];
   /** Per-selector presence map for locator().count(). Defaults to 0. */
   selectorCounts: Map<string, number>;
+  /**
+   * Per-selector visibility map for locator().first().isVisible(). M-02:
+   * a selector that matches a hidden element must NOT classify as captcha.
+   * Defaults to `true` when the selector has a non-zero count — preserving
+   * the pre-M-02 test semantics for all non-opting-in tests.
+   */
+  selectorVisible: Map<string, boolean>;
   /** Recorded storageState call paths. */
   storageStateCalls: Array<{ path: string | undefined }>;
   /** Incremented each time newPage/newContext/close is called on the browser side. */
@@ -47,12 +54,22 @@ function makeFakeTrio(initial: Partial<FakeState> = {}): {
     url: initial.url ?? 'about:blank',
     cookies: initial.cookies ?? [],
     selectorCounts: initial.selectorCounts ?? new Map<string, number>(),
+    selectorVisible: initial.selectorVisible ?? new Map<string, boolean>(),
     storageStateCalls: [],
     browserClosed: false,
   };
 
   const fakeLocator = (selector: string): unknown => ({
     count: async (): Promise<number> => state.selectorCounts.get(selector) ?? 0,
+    // M-02: isCaptchaSelectorPresent now gates on visibility. Default visible
+    // when not explicitly overridden — preserves prior positive-path tests.
+    first: (): unknown => ({
+      isVisible: async (): Promise<boolean> => {
+        const explicit = state.selectorVisible.get(selector);
+        if (explicit !== undefined) return explicit;
+        return (state.selectorCounts.get(selector) ?? 0) > 0;
+      },
+    }),
   });
 
   const fakeContext = {
@@ -270,6 +287,59 @@ describe('ensureAuthenticated', () => {
     expect((thrown as CrawlError).code).toBe('auth_failed');
     // Storage state MUST NOT be saved on failed classification.
     expect(state.storageStateCalls.length).toBe(0);
+  });
+
+  it('M-02: captcha selector present but HIDDEN on a non-captcha URL → no headed fallback (classifies as unknown → auth_failed, not captcha)', async () => {
+    const cwd = await makeTmpCwd();
+    // Fake submit flips URL to a non-captcha Cafe page AND reports that
+    // [id*=captcha] matches exactly one element BUT that element is NOT
+    // visible (e.g., a hidden disclaimer div). Under M-02 the visibility
+    // gate should suppress the captcha classification → the flow falls to
+    // login_required/unknown → auth_failed, never triggering a headed
+    // relaunch. Pre-M-02, the bare count()-gated probe would have classed
+    // this as captcha and spun up a headed browser (the false-positive
+    // 03-CONTEXT.md flagged).
+    const { page, browser, state } = makeSubmittingTrio((s) => {
+      s.url = 'https://cafe.naver.com/innocent-post';
+      s.selectorCounts = new Map([['[id*=captcha]', 1]]);
+      s.selectorVisible = new Map([['[id*=captcha]', false]]);
+    });
+    state.url = 'https://cafe.naver.com/innocent-post';
+
+    // Sentinel launchers — if M-02 regresses and we DO enter the headed
+    // fallback, these will be invoked and the assertion after will fail.
+    const launchHeaded = vi.fn(
+      async (_storage?: string): Promise<AuthLaunchHandle> => {
+        throw new Error('headed fallback should NOT have been entered (M-02)');
+      },
+    );
+    const launchHeadless = vi.fn(
+      async (_storage?: string): Promise<AuthLaunchHandle> => {
+        throw new Error('headless relaunch should NOT have been entered (M-02)');
+      },
+    );
+
+    let thrown: unknown;
+    try {
+      await ensureAuthenticated(page, 'https://cafe.naver.com/innocent-post', browser, {
+        env: { NAVER_ID: 'u', NAVER_PW: 'p' },
+        cwd,
+        launchHeaded,
+        launchHeadless,
+        onHeadedOpened: (): void => {
+          /* silence */
+        },
+      });
+    } catch (e) {
+      thrown = e;
+    }
+    // Classification is NOT captcha → falls through to the auth_failed
+    // branch (cookies empty after submit, URL not login). The critical
+    // assertion is that launchHeaded was never called.
+    expect(thrown).toBeInstanceOf(CrawlError);
+    expect((thrown as CrawlError).code).toBe('auth_failed');
+    expect(launchHeaded).toHaveBeenCalledTimes(0);
+    expect(launchHeadless).toHaveBeenCalledTimes(0);
   });
 
   it('captcha classification: triggers headed fallback — launchHeaded then launchHeadless called once each', async () => {

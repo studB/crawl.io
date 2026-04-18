@@ -78,23 +78,51 @@ export interface AuthContextOptions {
 }
 
 /**
- * Probe each CAPTCHA_SELECTORS entry for presence on a Page within a tight
- * internal budget. Never throws — failures are reported as false.
+ * Probe each CAPTCHA_SELECTORS entry for **visible** presence on a Page
+ * within a tight internal budget. Never throws — failures are reported as
+ * false.
  *
- * `locator().count()` is cheap and does not throw for non-matching selectors,
- * but we still wrap in try/catch because a closed / detached page can reject.
+ * M-02 hardening (2026-04-18 review): a bare `count() > 0` check fires on
+ * any node matching the substring selector (e.g. `[id*=captcha]` hitting an
+ * innocuous `<div id="captcha-help-link">`). We now require the FIRST match
+ * to also be visible — hidden disclaimer / tracking nodes no longer drag the
+ * user into a headed session. `locator().first().isVisible()` is the cheap
+ * visibility check Playwright recommends; we catch its rejections (closed
+ * page, detached element) and report `false`.
  */
 async function probeCaptchaSelectors(page: Page): Promise<boolean[]> {
   const hits: boolean[] = [];
   for (const sel of CAPTCHA_SELECTORS) {
-    try {
-      const count = await page.locator(sel).count();
-      hits.push(count > 0);
-    } catch {
-      hits.push(false);
-    }
+    hits.push(await isCaptchaSelectorPresent(page, sel));
   }
   return hits;
+}
+
+/**
+ * `true` iff `selector` matches a VISIBLE element on the page. Any failure
+ * (closed page, locator rejection, timeout) reports `false` — the caller
+ * classifies missing-signal as not-captcha, which is the safe direction per
+ * 03-CONTEXT.md §Claude's Discretion ("false positives are worse than false
+ * negatives").
+ */
+export async function isCaptchaSelectorPresent(
+  page: Page,
+  selector: string,
+): Promise<boolean> {
+  try {
+    const count = await page.locator(selector).count();
+    if (count === 0) return false;
+    // Visibility gate — a matching-but-hidden node must NOT classify as
+    // captcha. `.first()` is safe because `count > 0` established at least
+    // one match. `.isVisible()` does not wait; it is a snapshot probe.
+    return await page
+      .locator(selector)
+      .first()
+      .isVisible()
+      .catch(() => false);
+  } catch {
+    return false;
+  }
 }
 
 /**
