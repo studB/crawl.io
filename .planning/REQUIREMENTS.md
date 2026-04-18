@@ -9,7 +9,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Config (markdown config parser)
 
-- [ ] **CFG-01**: Parser reads a target URL from the `# URL` section of the markdown file
+- [x] **CFG-01**: Parser reads a target URL from the `# URL` section of the markdown file
 - [x] **CFG-02**: Parser reads a YAML block inside `# Selectors` and produces a map of named fields
 - [x] **CFG-03**: A selector entry can declare an engine (`css` or `xpath`) per field
 - [x] **CFG-04**: A selector entry can declare an explicit `frame` path so the crawler descends into a specific nested iframe before matching
@@ -97,7 +97,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CFG-01 | Phase 1 | Pending |
+| CFG-01 | Phase 1 | Complete |
 | CFG-02 | Phase 1 | Complete |
 | CFG-03 | Phase 1 | Complete |
 | CFG-04 | Phase 1 | Complete |
