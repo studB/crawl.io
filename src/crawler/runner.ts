@@ -102,14 +102,17 @@ export async function runCrawl(configPath: string): Promise<CrawlResult> {
       // joining — ConfigParseError.issues often contains fully-qualified
       // filePath and stack-like strings that would otherwise be committed.
       const scrubbedIssues = err.issues.map((i) => scrubPaths(i));
-      return finalize({
+      // LW-01: `return await` (not bare `return`) so that if a future refactor
+      // wraps runCrawl in an outer try/catch, rejections from finalize are
+      // caught inside runCrawl's frame rather than escaping unobserved.
+      return await finalize({
         status: 'error',
         url: '',
         error: errorPayload('config_parse', scrubbedIssues.join('; '), scrubPaths(err.stack)),
       });
     }
     const e = err as Error;
-    return finalize({
+    return await finalize({
       status: 'error',
       url: '',
       error: errorPayload('unknown', scrubPaths(e?.message ?? String(err)), scrubPaths(e?.stack)),
