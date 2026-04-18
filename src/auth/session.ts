@@ -108,7 +108,7 @@ export async function sessionLooksValid(cwd: string = process.cwd()): Promise<bo
  */
 export async function writeSession(
   cwd: string,
-  write: (tmpPath: string) => Promise<void>,
+  write: (tmpPath: string) => Promise<unknown>,
 ): Promise<void> {
   const final = sessionFilePath(cwd);
   const tmp = final + '.tmp-' + process.pid + '-' + Date.now();

@@ -215,7 +215,7 @@ export async function ensureAuthenticated(
   }
 
   if (cls === 'captcha') {
-    return await runHeadedFallback(browser, targetUrl, contextOpts);
+    return await runHeadedFallback(browser, contextOpts);
   }
 
   // login_required / unknown after a submit — credentials were wrong or the
@@ -240,7 +240,6 @@ export async function ensureAuthenticated(
  */
 async function runHeadedFallback(
   origBrowser: Browser,
-  targetUrl: string,
   opts?: AuthContextOptions,
 ): Promise<Page> {
   const env = opts?.env ?? process.env;
@@ -359,8 +358,8 @@ async function runHeadedFallback(
     });
   const fresh = await launchHeadless(sessionPath);
 
-  // Explicit tie-in with targetUrl for future logging (e.g., "relaunched
-  // headless to resume " + targetUrl). Currently unused but reserved.
-  void targetUrl;
+  // L-03 (2026-04-18 review): the prior `targetUrl` reserved-parameter was
+  // unused. If Phase 4 adds logging ("relaunched headless to resume …"),
+  // reintroduce the parameter at the call chain then.
   return fresh.page;
 }
