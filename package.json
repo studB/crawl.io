@@ -17,6 +17,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "commander": "^12.1.0",
     "playwright": "^1.59.1",
     "remark-parse": "^9.0.0",
     "unified": "^9.2.2",
