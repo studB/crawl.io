@@ -111,7 +111,9 @@ function successSummary(result: CrawlResult): string {
       }
     }
   }
-  return '\u2713 crawl ok (' + result.durationMs + 'ms)';
+  // IN-04: Math.round guarantees integer ms output even if a future
+  // CrawlResult carries a fractional durationMs.
+  return '\u2713 crawl ok (' + Math.round(result.durationMs) + 'ms)';
 }
 
 /**
