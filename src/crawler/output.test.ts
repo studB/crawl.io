@@ -439,4 +439,50 @@ describe('writeOutputToFile', () => {
       writeOutputToFile('/nonexistent/directory/does/not/exist.md', entry),
     ).rejects.toThrow();
   });
+
+  it('Test 20 (MD-03): concurrent writeOutputToFile calls on SAME path serialize — both entries land', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'crawl-out-'));
+    try {
+      const tmpPath = join(dir, 'cfg.md');
+      const originalSource = '# URL\n\nhttps://ex.com\n';
+      await writeFile(tmpPath, originalSource, 'utf8');
+
+      const entry1 = renderEntry({
+        status: 'ok',
+        configPath: tmpPath,
+        url: 'https://ex.com',
+        startedAt: new Date('2026-04-18T01:00:00Z'),
+        durationMs: 100,
+        fields: { run: 'A' },
+      });
+      const entry2 = renderEntry({
+        status: 'ok',
+        configPath: tmpPath,
+        url: 'https://ex.com',
+        startedAt: new Date('2026-04-18T02:00:00Z'),
+        durationMs: 200,
+        fields: { run: 'B' },
+      });
+
+      // Fire both writes WITHOUT awaiting between them — tests the in-process
+      // lock + atomic rename, not sequential calls.
+      await Promise.all([
+        writeOutputToFile(tmpPath, entry1),
+        writeOutputToFile(tmpPath, entry2),
+      ]);
+
+      const onDisk = await readFile(tmpPath, 'utf8');
+      // Both entries present — no lost update.
+      expect(onDisk).toContain(entry1);
+      expect(onDisk).toContain(entry2);
+      // Exactly ONE `# Output` header.
+      expect((onDisk.match(/^# Output\s*$/gim) ?? []).length).toBe(1);
+      // No stray tmp file alongside the target.
+      const { readdir } = await import('node:fs/promises');
+      const dirents = await readdir(dir);
+      expect(dirents.filter((n) => n.startsWith('cfg.md.tmp-'))).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });

@@ -17,7 +17,8 @@
  * conditional spread to omit the key entirely when absent.
  */
 
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, rename, unlink } from 'node:fs/promises';
+import { resolve as resolvePath } from 'node:path';
 
 import type { CrawlResult } from './types';
 
@@ -138,13 +139,89 @@ export function appendOutput(source: string, entry: string): string {
 }
 
 /**
- * Read the markdown config file, append a new entry, write it back.
+ * MD-03: in-process serialization map for writeOutputToFile.
  *
- * Native fs errors propagate unchanged (the runner in Plan 04 decides whether
- * to wrap them as CrawlError).
+ * Two `runCrawl` invocations targeting the SAME config path would otherwise
+ * race on read→append→write: both read the pre-run source, each appends
+ * their own entry, and the later writer would clobber the earlier one.
+ *
+ * The lock is keyed by the ABSOLUTE, resolved path so `./cfg.md` and
+ * `/home/u/cfg.md` (same file) share a single queue. The lock is an in-
+ * process promise chain — it does NOT protect against other OS processes
+ * writing the same file simultaneously (that requires an fs-level flock,
+ * which v1 OOS rules out). Phase-4 CLI is one-shot per run, so in-process
+ * serialization is the right scope for v1.
+ */
+const writeLocks = new Map<string, Promise<void>>();
+
+/**
+ * Build a best-effort-unique tmp path next to the target. Using the same
+ * directory is important so `fs.rename` is atomic (cross-filesystem rename
+ * would fall back to copy+unlink and defeat the atomicity guarantee).
+ */
+function tmpPathFor(configPath: string): string {
+  const pid = process.pid;
+  const ts = Date.now();
+  const rnd = Math.random().toString(36).slice(2, 10);
+  return configPath + '.tmp-' + pid + '-' + ts + '-' + rnd;
+}
+
+/**
+ * Read the markdown config file, append a new entry, write it back atomically.
+ *
+ * Atomicity (MD-03):
+ *   1. Acquire the per-path in-process lock so concurrent callers on the
+ *      SAME path serialize (no lost updates).
+ *   2. readFile → appendOutput → writeFile(tmp) → rename(tmp, configPath).
+ *   3. rename is atomic on POSIX same-filesystem operations — readers
+ *      either see the pre-write file or the post-write file, never a
+ *      half-written state.
+ *   4. On rename failure, retry once (transient EACCES/EPERM during
+ *      concurrent writers on some platforms). Remaining tmp file is
+ *      cleaned up on final failure.
+ *
+ * Native fs errors on the underlying readFile / writeFile / rename
+ * propagate unchanged (the runner in Plan 04 decides whether to wrap them
+ * as CrawlError).
  */
 export async function writeOutputToFile(configPath: string, entry: string): Promise<void> {
+  const key = resolvePath(configPath);
+  const prev = writeLocks.get(key) ?? Promise.resolve();
+  // Chain the new write behind any in-flight write on the same path.
+  // `.catch` swallows prior errors so one failing writer does not poison
+  // the queue; each writer still sees its own success/failure.
+  const next = prev.catch(() => undefined).then(() => doAtomicWrite(configPath, entry));
+  writeLocks.set(key, next);
+  try {
+    await next;
+  } finally {
+    // Only clear the map entry if we are still the tail (nobody else queued
+    // behind us). Otherwise the tail lives on and will clear itself.
+    if (writeLocks.get(key) === next) {
+      writeLocks.delete(key);
+    }
+  }
+}
+
+async function doAtomicWrite(configPath: string, entry: string): Promise<void> {
   const source = await readFile(configPath, 'utf8');
-  const next = appendOutput(source, entry);
-  await writeFile(configPath, next, 'utf8');
+  const nextContent = appendOutput(source, entry);
+  const tmp = tmpPathFor(configPath);
+  await writeFile(tmp, nextContent, 'utf8');
+  try {
+    await rename(tmp, configPath);
+  } catch (err) {
+    // Retry once (transient rename failure on contended filesystems).
+    try {
+      await rename(tmp, configPath);
+    } catch (retryErr) {
+      // Clean up the orphan tmp before surfacing the error.
+      try {
+        await unlink(tmp);
+      } catch {
+        /* swallow — best-effort cleanup */
+      }
+      throw retryErr ?? err;
+    }
+  }
 }
