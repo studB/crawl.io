@@ -43,7 +43,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. A config that declares an explicit frame path causes the crawler to descend into that iframe before evaluating the selector; extraction succeeds at least 2 levels deep
   4. A config using `engine: xpath` successfully extracts text that a CSS selector on the same field would also return
   5. When the `waitFor` condition is not met within `timeout` milliseconds, the crawler writes an error entry to `# Output` and exits with a non-zero code
-**Plans**: TBD
+**Plans**: 4 plans
+  - [ ] 02-01-PLAN.md — Install Playwright + Chromium binary, extend .gitignore for session/artifacts, scaffold src/crawler/ type contracts (CrawlErrorCode, CrawlResult, CrawlError class + unit tests) [Wave 1]
+  - [ ] 02-02-PLAN.md — Pure markdown writeback (formatTimestamp, renderEntry, appendOutput, writeOutputToFile) with TDD unit tests covering append-only + success/error JSON shapes [Wave 2]
+  - [ ] 02-03-PLAN.md — Playwright-bound crawler modules (browser.ts, frame.ts, extract.ts) + nested-iframe HTML fixtures + integration tests for 2-level descent, CSS vs XPath, timeout mapping [Wave 2]
+  - [ ] 02-04-PLAN.md — runCrawl orchestrator wiring parser → browser → extract → writeback, crawler barrel, src/index.ts public exposure, end-to-end integration tests for happy path + two-run append + error entries [Wave 3]
 **UI hint**: no
 
 ### Phase 3: Naver Auth + Session
@@ -76,6 +80,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Config Parser | 3/3 | Complete    | 2026-04-18 |
-| 2. Core Crawler + Output | 0/TBD | Not started | - |
+| 2. Core Crawler + Output | 0/4 | Planned | - |
 | 3. Naver Auth + Session | 0/TBD | Not started | - |
 | 4. CLI + Packaging | 0/TBD | Not started | - |
