@@ -12,7 +12,7 @@ Four phases build the crawler from the inside out. Phase 1 delivers the markdown
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Config Parser** - Parse a markdown file into a validated, structured crawl job
+- [x] **Phase 1: Config Parser** - Parse a markdown file into a validated, structured crawl job (completed 2026-04-18)
 - [ ] **Phase 2: Core Crawler + Output** - Playwright extraction loop writing results back into the markdown file
 - [ ] **Phase 3: Naver Auth + Session** - Login, storage-state reuse, and captcha headed fallback
 - [ ] **Phase 4: CLI + Packaging** - Subcommand CLI, bin entry, TypeScript build, and npm publish readiness
@@ -75,7 +75,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Config Parser | 0/3 | Not started | - |
+| 1. Config Parser | 3/3 | Complete    | 2026-04-18 |
 | 2. Core Crawler + Output | 0/TBD | Not started | - |
 | 3. Naver Auth + Session | 0/TBD | Not started | - |
 | 4. CLI + Packaging | 0/TBD | Not started | - |
