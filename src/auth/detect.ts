@@ -38,8 +38,20 @@ export const CAPTCHA_SELECTORS: readonly string[] = [
  * per 03-CONTEXT.md §Claude's Discretion, false positives are worse than
  * false negatives because a false positive drags the user into an
  * unnecessary headed session.
+ *
+ * H-01 narrowing (2026-04-18 review): each sub-pattern is now anchored to a
+ * path-segment boundary so legitimate paths like `/capture-tutorial`,
+ * `?tag=smstoday`, or `/asmspace/` do NOT match. The prior `\/cap` alias was
+ * dropped (subsumed by `\/captcha`) and the bare `sms` anchor was replaced
+ * with segment-anchored shapes that cover the real SMS-verify route space:
+ *
+ *   - `/captcha`, `/captcha/x`, `/captcha?x=1`, `/captcha` at EOL
+ *   - `/otp`,     `/otp/x`,     `/otp?x=1`,     `/otp`     at EOL
+ *   - `/login-verify` (followed by anything or EOL)
+ *   - `/sms`,     `/sms/x`,     `/sms?x=1`,     `/sms`     at EOL
  */
-export const CAPTCHA_URL_REGEX = /\/captcha|\/otp|\/login-verify|\/cap|sms/i;
+export const CAPTCHA_URL_REGEX =
+  /\/captcha(?:[/?]|$)|\/otp(?:[/?]|$)|\/login-verify|\/sms(?:[/?]|$)/i;
 
 /** Success cookie names — BOTH must be present (locked in 03-CONTEXT.md). */
 export const NAVER_AUTH_COOKIES = ['NID_AUT', 'NID_SES'] as const;

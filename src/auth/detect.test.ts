@@ -57,9 +57,38 @@ describe('detect', () => {
     expect(urlLooksLikeCaptcha('https://cafe.naver.com/post/123')).toBe(false);
   });
 
-  it('urlLooksLikeCaptcha: "sms" fragment and /login-verify match (intentional)', () => {
-    expect(urlLooksLikeCaptcha('https://x/sms-verify')).toBe(true);
+  it('urlLooksLikeCaptcha: /sms, /sms/verify, and /login-verify match (real SMS-verify + 2FA routes)', () => {
+    // H-01: segment-anchored — the BARE `/sms` route matches, as does a
+    // sub-routed `/sms/verify`. Older `/sms-verify` (hyphenated, no segment
+    // break) is now a deliberate NEGATIVE because we have no evidence Naver
+    // uses that shape — if it ever surfaces, re-introduce as a distinct alt.
+    expect(urlLooksLikeCaptcha('https://x/sms')).toBe(true);
+    expect(urlLooksLikeCaptcha('https://x/sms?foo=1')).toBe(true);
+    expect(urlLooksLikeCaptcha('https://x/sms/verify')).toBe(true);
     expect(urlLooksLikeCaptcha('https://x/login-verify')).toBe(true);
+  });
+
+  // H-01 regression: positive cases for segment-anchored captcha routes.
+  it('urlLooksLikeCaptcha: /v2/captcha, /captcha?foo=bar, /otp, /otp/x all match (segment-anchored positives)', () => {
+    expect(urlLooksLikeCaptcha('https://nid.naver.com/v2/captcha')).toBe(true);
+    expect(urlLooksLikeCaptcha('https://nid.naver.com/captcha?foo=bar')).toBe(true);
+    expect(urlLooksLikeCaptcha('https://nid.naver.com/otp')).toBe(true);
+    expect(urlLooksLikeCaptcha('https://nid.naver.com/otp/x')).toBe(true);
+  });
+
+  // H-01 regression: negative cases guard against the old loose `\/cap` and
+  // bare-`sms` sub-patterns that falsely matched legitimate Naver paths.
+  it('urlLooksLikeCaptcha: /capture-tutorial, /capture, /capital do NOT match (former \\/cap false positives)', () => {
+    expect(urlLooksLikeCaptcha('https://cafe.naver.com/board/capture-tutorial')).toBe(false);
+    expect(urlLooksLikeCaptcha('https://cafe.naver.com/capture')).toBe(false);
+    expect(urlLooksLikeCaptcha('https://cafe.naver.com/capital')).toBe(false);
+    expect(urlLooksLikeCaptcha('https://cafe.naver.com/capacity')).toBe(false);
+  });
+
+  it('urlLooksLikeCaptcha: ?tag=smstoday, ?promo=captivate, /asmspace do NOT match (former bare-sms false positives)', () => {
+    expect(urlLooksLikeCaptcha('https://cafe.naver.com/post?tag=smstoday')).toBe(false);
+    expect(urlLooksLikeCaptcha('https://cafe.naver.com/post?promo=captivate')).toBe(false);
+    expect(urlLooksLikeCaptcha('https://cafe.naver.com/asmspace/foo')).toBe(false);
   });
 
   // --- urlLooksLikeNaverLogin ---
