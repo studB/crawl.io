@@ -18,12 +18,61 @@
  */
 
 import { readFile, writeFile, rename, unlink } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { resolve as resolvePath } from 'node:path';
 
 import type { CrawlResult } from './types';
 
 // Avoid triple-backtick escape-sequence drama in TS source strings.
 const FENCE = '\u0060\u0060\u0060';
+
+/**
+ * MD-04: replace absolute filesystem path prefixes that identify the user or
+ * their home directory with a `<HOME>` placeholder, so stack traces and error
+ * messages written to disk do not leak the home layout / username.
+ *
+ * Substitutions (earliest matches win — most-specific first):
+ *   - `os.homedir()` exact prefix → `<HOME>`
+ *   - POSIX `/home/<user>/...`   → `<HOME>/...`
+ *   - macOS `/Users/<user>/...`  → `<HOME>/...`
+ *   - Windows `C:\Users\<user>\...` (any drive letter) → `<HOME>\...`
+ *
+ * The repo portion AFTER the home segment is preserved verbatim (e.g.,
+ * `/home/alice/work/crawl.io/src/runner.ts:42` → `<HOME>/work/crawl.io/src/runner.ts:42`).
+ * This keeps stack traces useful for debugging while stripping the
+ * identifiable username / layout.
+ *
+ * Pure function, safe for `undefined` input (returns `undefined`).
+ */
+export function scrubPaths(text: string): string;
+export function scrubPaths(text: undefined): undefined;
+export function scrubPaths(text: string | undefined): string | undefined;
+export function scrubPaths(text: string | undefined): string | undefined {
+  if (text === undefined) return undefined;
+  let out = text;
+
+  // 1. Exact os.homedir() prefix — most specific, apply first. Guard against
+  //    homedir being falsy (rare — CI containers without HOME set).
+  const home = homedir();
+  if (home && home.length > 0) {
+    // Escape regex metacharacters in the concrete home string.
+    const esc = home.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out = out.replace(new RegExp(esc, 'g'), '<HOME>');
+  }
+
+  // 2. POSIX `/home/<user>/...` — <user> is any path segment that is NOT `/`.
+  out = out.replace(/\/home\/[^/\s:()]+/g, '<HOME>');
+
+  // 3. macOS `/Users/<user>/...`
+  out = out.replace(/\/Users\/[^/\s:()]+/g, '<HOME>');
+
+  // 4. Windows `C:\Users\<user>\...` (any drive letter, case-insensitive drive).
+  //    Note: Node may also report such paths with forward slashes under some
+  //    tooling — case (2) already covers the `/Users/…` shape there.
+  out = out.replace(/[A-Za-z]:\\Users\\[^\\\s:()]+/g, '<HOME>');
+
+  return out;
+}
 
 /**
  * Format a Date as UTC `YYYY-MM-DD HH:MM` — no seconds, zero-padded,
@@ -60,12 +109,15 @@ export function renderEntry(result: CrawlResult): string {
     italic = `_count: ${Object.keys(fields).length}, duration: ${result.durationMs}ms_`;
   } else {
     const src = result.error ?? { code: 'unknown' as const, message: 'no error detail' };
-    // Conditional spread keeps `stack` out of the serialized payload entirely
-    // when src.stack is undefined (exactOptionalPropertyTypes compliance).
+    // MD-04: scrub absolute home-directory paths from user-facing strings
+    // BEFORE serializing them into the committed markdown. The conditional
+    // spread keeps `stack` out of the payload entirely when src.stack is
+    // undefined (exactOptionalPropertyTypes compliance).
+    const scrubbedStack = scrubPaths(src.stack);
     const error = {
       code: src.code,
-      message: src.message,
-      ...(src.stack !== undefined ? { stack: src.stack } : {}),
+      message: scrubPaths(src.message),
+      ...(scrubbedStack !== undefined ? { stack: scrubbedStack } : {}),
     };
     payload = { error, meta };
     italic = `_error: ${src.code}, duration: ${result.durationMs}ms_`;

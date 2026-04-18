@@ -36,7 +36,7 @@ import type { CrawlResult, CrawlErrorCode } from './types';
 import { CrawlError } from './errors';
 import { launchBrowser, closeBrowser, type BrowserHandle } from './browser';
 import { waitForReady, extractFields } from './extract';
-import { renderEntry, writeOutputToFile } from './output';
+import { renderEntry, scrubPaths, writeOutputToFile } from './output';
 
 /**
  * Build the `error` envelope object, omitting `stack` entirely when it is
@@ -98,17 +98,21 @@ export async function runCrawl(configPath: string): Promise<CrawlResult> {
     url = job.url;
   } catch (err) {
     if (err instanceof ConfigParseError) {
+      // MD-04: scrub absolute home-directory paths out of each issue before
+      // joining — ConfigParseError.issues often contains fully-qualified
+      // filePath and stack-like strings that would otherwise be committed.
+      const scrubbedIssues = err.issues.map((i) => scrubPaths(i));
       return finalize({
         status: 'error',
         url: '',
-        error: errorPayload('config_parse', err.issues.join('; '), err.stack),
+        error: errorPayload('config_parse', scrubbedIssues.join('; '), scrubPaths(err.stack)),
       });
     }
     const e = err as Error;
     return finalize({
       status: 'error',
       url: '',
-      error: errorPayload('unknown', e?.message ?? String(err), e?.stack),
+      error: errorPayload('unknown', scrubPaths(e?.message ?? String(err)), scrubPaths(e?.stack)),
     });
   }
 
@@ -156,7 +160,13 @@ export async function runCrawl(configPath: string): Promise<CrawlResult> {
       // so using detail avoids the code being repeated in the envelope.
       message = err.detail ?? err.message;
     }
-    return await finalize({ status: 'error', url, error: errorPayload(code, message, stack) });
+    // MD-04: scrub absolute home-directory paths from message + stack before
+    // they are rendered into the committed markdown output.
+    return await finalize({
+      status: 'error',
+      url,
+      error: errorPayload(code, scrubPaths(message), scrubPaths(stack)),
+    });
   } finally {
     if (handle !== undefined) {
       await closeBrowser(handle);

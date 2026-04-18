@@ -7,6 +7,7 @@ import {
   formatTimestamp,
   renderEntry,
   appendOutput,
+  scrubPaths,
   writeOutputToFile,
 } from './output';
 import type { CrawlResult } from './types';
@@ -23,6 +24,50 @@ function extractFencedJson(entry: string): unknown {
   }
   return JSON.parse(match[1]);
 }
+
+describe('scrubPaths (MD-04)', () => {
+  it('Test S1: replaces /home/<user>/... with <HOME>/... while preserving the repo portion', () => {
+    const input =
+      'at parseConfigFile (/home/ubuntu/work/crawl.io/src/runner.ts:42:10)';
+    const out = scrubPaths(input);
+    expect(out).toBe('at parseConfigFile (<HOME>/work/crawl.io/src/runner.ts:42:10)');
+  });
+
+  it('Test S2: replaces macOS /Users/<user>/... with <HOME>/...', () => {
+    const input = 'filePath: /Users/alice/projects/secret/cfg.md';
+    const out = scrubPaths(input);
+    expect(out).toBe('filePath: <HOME>/projects/secret/cfg.md');
+  });
+
+  it('Test S3: replaces Windows C:\\Users\\<user>\\ with <HOME>\\', () => {
+    const input = 'at foo (C:\\Users\\bob\\projects\\cfg.md:1:1)';
+    const out = scrubPaths(input);
+    expect(out).toBe('at foo (<HOME>\\projects\\cfg.md:1:1)');
+  });
+
+  it('Test S4: multiline stack-like input — every occurrence is scrubbed', () => {
+    const input = [
+      'Error: boom',
+      '    at parseConfigFile (/home/ubuntu/work/crawl.io/src/config/parser.ts:10:5)',
+      '    at runCrawl (/home/ubuntu/work/crawl.io/src/crawler/runner.ts:99:3)',
+    ].join('\n');
+    const out = scrubPaths(input);
+    expect(out).not.toContain('/home/ubuntu');
+    expect(out.match(/<HOME>/g)?.length).toBe(2);
+    // Repo-relative path portion preserved.
+    expect(out).toContain('/work/crawl.io/src/config/parser.ts:10:5');
+    expect(out).toContain('/work/crawl.io/src/crawler/runner.ts:99:3');
+  });
+
+  it('Test S5: input without any home-like path is returned unchanged', () => {
+    const input = 'nothing sensitive here — just a plain message';
+    expect(scrubPaths(input)).toBe(input);
+  });
+
+  it('Test S6: undefined input returns undefined (passthrough for optional stack)', () => {
+    expect(scrubPaths(undefined)).toBeUndefined();
+  });
+});
 
 describe('formatTimestamp', () => {
   it('Test 1: returns YYYY-MM-DD HH:MM (UTC, no seconds)', () => {
