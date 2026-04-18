@@ -28,7 +28,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. A selector entry that specifies `engine: xpath` is distinguished from one that specifies `engine: css` in the parsed output
   3. A selector entry with an explicit `frame` path is present in the parsed output alongside its selector string
   4. Given a markdown file missing `# URL` or containing invalid YAML, the parser throws a descriptive error message without launching any browser process
-**Plans**: TBD
+**Plans**: 3 plans
+  - [ ] 01-01-PLAN.md — Install deps (unified, remark-parse, yaml, zod, vitest), align tsconfig/package.json for CJS build, create src/config scaffold
+  - [ ] 01-02-PLAN.md — Define CrawlJob/SelectorSpec types, Zod schemas (engine enum, frame array, strict unknown-key rejection, defaults), ConfigParseError class + unit tests
+  - [ ] 01-03-PLAN.md — Implement parseConfig + parseConfigFile via unified+remark+yaml, aggregate errors, wire src/index.ts public barrel + unit tests
 
 ### Phase 2: Core Crawler + Output
 **Goal**: The crawler navigates to a configured URL, extracts named fields (including from nested iframes), and appends the results as a timestamped JSON block to the markdown file's Output section
@@ -72,7 +75,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Config Parser | 0/TBD | Not started | - |
+| 1. Config Parser | 0/3 | Not started | - |
 | 2. Core Crawler + Output | 0/TBD | Not started | - |
 | 3. Naver Auth + Session | 0/TBD | Not started | - |
 | 4. CLI + Packaging | 0/TBD | Not started | - |
