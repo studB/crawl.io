@@ -106,6 +106,13 @@ describe.skipIf(SKIP)('npm packaging integration', () => {
   // Ensure dist is present. prepack would build on every pack anyway, but
   // Test 1 inspects the ALREADY-present dist the first time through, so
   // guard against a cold checkout with no dist/ yet.
+  //
+  // IN-01 side effect: on a cold checkout (no dist/), this beforeAll
+  // runs `npm run build` which writes to dist/. Subsequent `git status`
+  // will show dist/ as untracked (dist/ is gitignored so it does NOT
+  // pollute the working tree in a tracked sense, but the directory is
+  // created as a side effect of running this integration test).
+  // Acceptable for an integration test; flagged for discoverability.
   beforeAll(async () => {
     if (!existsSync(BIN)) {
       const r = await runCmd('npm', ['run', 'build'], { timeoutMs: 120_000 });
