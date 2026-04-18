@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Given a markdown file missing `# URL` or containing invalid YAML, the parser throws a descriptive error message without launching any browser process
 **Plans**: 3 plans
   - [x] 01-01-PLAN.md — Install deps (unified, remark-parse, yaml, zod, vitest), align tsconfig/package.json for CJS build, create src/config scaffold
-  - [ ] 01-02-PLAN.md — Define CrawlJob/SelectorSpec types, Zod schemas (engine enum, frame array, strict unknown-key rejection, defaults), ConfigParseError class + unit tests
+  - [x] 01-02-PLAN.md — Define CrawlJob/SelectorSpec types, Zod schemas (engine enum, frame array, strict unknown-key rejection, defaults), ConfigParseError class + unit tests
   - [ ] 01-03-PLAN.md — Implement parseConfig + parseConfigFile via unified+remark+yaml, aggregate errors, wire src/index.ts public barrel + unit tests
 
 ### Phase 2: Core Crawler + Output

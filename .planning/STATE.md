@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-04-18T01:12:08.573Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-04-18T01:19:26.459Z"
 last_activity: 2026-04-18
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 67
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-18)
 ## Current Position
 
 Phase: 1 (Config Parser) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-04-18
 
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 01-config-parser P01 | 3 min | 3 tasks | 7 files |
+| Phase 01-config-parser P02 | 3 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,9 @@ Recent decisions affecting current work:
 - [Phase 01-config-parser]: Pin unified and remark-parse to ^9 (last CJS-compatible majors) — v10+ is ESM-only; Node 20 LTS + type:commonjs + module:nodenext cannot require() ESM, and D-08 locks parseConfig as sync, forbidding the await import() workaround. v9 exposes identical unified().use(remarkParse).parse() sync API and mdast AST shape.
 - [Phase 01-config-parser]: Keep package.json type:commonjs for v1 — Simpler npm publish shape (no exports conditional map, no dual-publish); constrains us to the unified/remark-parse v9 pin, which is an accepted cost.
 - [Phase 01-config-parser]: Vitest with passWithNoTests:true and colocated src/**/*.test.ts — Colocated tests keep each module next to its spec; passWithNoTests:true makes empty-suite CI runs green regardless of Vitest version.
+- [Phase 01-config-parser]: Use Zod v4 strictObject/z.url/z.record(keySchema, valueSchema) — matches installed zod@4.3.6 and is more direct than the v3 form. All schemas strict (CFG-06 unknown-key rejection).
+- [Phase 01-config-parser]: Use 'declare readonly filePath?: string' + conditional assignment in ConfigParseError — suppresses useDefineForClassFields field emission so 'filePath' in err === false when omitted; required by exactOptionalPropertyTypes (D-05).
+- [Phase 01-config-parser]: Disable verbatimModuleSyntax in tsconfig.json (Plan 02 Rule 3 deviation) — the flag forbids ESM import/export syntax under module:nodenext + type:commonjs, blocking idiomatic TS authorship. Not in CLAUDE.md-mandated strictness set; tsc still emits correct CJS.
 
 ### Pending Todos
 
@@ -85,6 +89,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-18T01:12:08.570Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-04-18T01:19:26.456Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None

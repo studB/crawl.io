@@ -10,11 +10,11 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Config (markdown config parser)
 
 - [ ] **CFG-01**: Parser reads a target URL from the `# URL` section of the markdown file
-- [ ] **CFG-02**: Parser reads a YAML block inside `# Selectors` and produces a map of named fields
-- [ ] **CFG-03**: A selector entry can declare an engine (`css` or `xpath`) per field
-- [ ] **CFG-04**: A selector entry can declare an explicit `frame` path so the crawler descends into a specific nested iframe before matching
-- [ ] **CFG-05**: Parser reads `waitFor` (selector to wait for) and `timeout` (milliseconds) from a `# Rules` YAML block
-- [ ] **CFG-06**: Parser fails with a clear error message (before launching a browser) when the file is missing `# URL`, has invalid YAML, or references unknown keys
+- [x] **CFG-02**: Parser reads a YAML block inside `# Selectors` and produces a map of named fields
+- [x] **CFG-03**: A selector entry can declare an engine (`css` or `xpath`) per field
+- [x] **CFG-04**: A selector entry can declare an explicit `frame` path so the crawler descends into a specific nested iframe before matching
+- [x] **CFG-05**: Parser reads `waitFor` (selector to wait for) and `timeout` (milliseconds) from a `# Rules` YAML block
+- [x] **CFG-06**: Parser fails with a clear error message (before launching a browser) when the file is missing `# URL`, has invalid YAML, or references unknown keys
 
 ### Crawling (Playwright single-page extraction)
 
@@ -98,11 +98,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | CFG-01 | Phase 1 | Pending |
-| CFG-02 | Phase 1 | Pending |
-| CFG-03 | Phase 1 | Pending |
-| CFG-04 | Phase 1 | Pending |
-| CFG-05 | Phase 1 | Pending |
-| CFG-06 | Phase 1 | Pending |
+| CFG-02 | Phase 1 | Complete |
+| CFG-03 | Phase 1 | Complete |
+| CFG-04 | Phase 1 | Complete |
+| CFG-05 | Phase 1 | Complete |
+| CFG-06 | Phase 1 | Complete |
 | CRWL-01 | Phase 2 | Pending |
 | CRWL-02 | Phase 2 | Pending |
 | CRWL-03 | Phase 2 | Pending |
