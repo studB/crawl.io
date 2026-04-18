@@ -89,16 +89,27 @@ export function renderEntry(result: CrawlResult): string {
  *     entry.
  *   - The source is otherwise preserved BYTE-FOR-BYTE — prior entries, config
  *     sections, trailing non-output sections are all untouched.
- *   - Result always ends with `\n`; a source missing a trailing newline is
- *     normalized first.
+ *   - Line-ending preservation (MD-01): if the source uses `\r\n` (CRLF) at
+ *     least once, every newline we add AND every `\n` inside the rendered
+ *     entry is promoted to `\r\n` so the file stays single-encoding after
+ *     writeback. A source without any `\r\n` keeps `\n` semantics.
+ *   - Result always ends with the source's dominant newline; a source missing
+ *     a trailing newline is normalized first.
  */
 export function appendOutput(source: string, entry: string): string {
-  const src = source.endsWith('\n') ? source : source + '\n';
+  // MD-01: detect the source's dominant newline style ONCE and thread it
+  // through every inserted separator. Presence of a single `\r\n` classifies
+  // the file as CRLF — mixed-ending files become uniform CRLF after
+  // writeback, which is strictly better than the pre-fix "preserve the worst
+  // of both worlds" behavior.
+  const nl = source.includes('\r\n') ? '\r\n' : '\n';
+  const src = source.endsWith(nl) ? source : source + nl;
+  const normalizedEntry = nl === '\r\n' ? entry.replace(/\r?\n/g, '\r\n') : entry;
   const hasOutputHeader = /^# Output\s*$/im.test(src);
   if (hasOutputHeader) {
-    return src + '\n' + entry;
+    return src + nl + normalizedEntry;
   }
-  return src + '\n# Output\n\n' + entry;
+  return src + nl + '# Output' + nl + nl + normalizedEntry;
 }
 
 /**

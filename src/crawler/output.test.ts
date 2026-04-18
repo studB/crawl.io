@@ -285,6 +285,43 @@ describe('appendOutput', () => {
     // one newline is added before any new content)
     expect(result.startsWith(source + '\n')).toBe(true);
   });
+
+  it('Test 16a (MD-01): CRLF source with no `# Output` round-trips to CRLF only — no bare \\n introduced', () => {
+    // Author a CRLF config with NO `# Output` header yet.
+    const source = '# URL\r\n\r\nhttps://ex.com\r\n\r\n# Selectors\r\n\r\n[block]\r\n';
+    const result = appendOutput(source, sampleEntry);
+
+    // The config portion is preserved byte-for-byte (CRLF intact).
+    expect(result.startsWith(source)).toBe(true);
+    // The appended `# Output` header uses CRLF.
+    expect(result).toContain('\r\n# Output\r\n');
+    // Result ends with CRLF.
+    expect(result.endsWith('\r\n')).toBe(true);
+    // NO lone `\n` in the result — every newline is `\r\n`.
+    let loneLfCount = 0;
+    for (let i = 0; i < result.length; i++) {
+      if (result[i] === '\n' && result[i - 1] !== '\r') {
+        loneLfCount += 1;
+      }
+    }
+    expect(loneLfCount).toBe(0);
+  });
+
+  it('Test 16b (MD-01): CRLF source with existing `# Output` header appends a CRLF entry', () => {
+    const source = '# URL\r\n\r\nhttps://ex.com\r\n\r\n# Output\r\n';
+    const result = appendOutput(source, sampleEntry);
+
+    // Exactly one `# Output` header (case-insensitive).
+    expect((result.match(/^# Output\s*$/gim) ?? []).length).toBe(1);
+    // No lone LF anywhere in the result.
+    let loneLfCount = 0;
+    for (let i = 0; i < result.length; i++) {
+      if (result[i] === '\n' && result[i - 1] !== '\r') {
+        loneLfCount += 1;
+      }
+    }
+    expect(loneLfCount).toBe(0);
+  });
 });
 
 describe('writeOutputToFile', () => {
