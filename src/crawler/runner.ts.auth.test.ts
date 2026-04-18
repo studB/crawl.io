@@ -34,6 +34,10 @@ vi.mock('../auth/index', () => ({
 
 vi.mock('../auth/session', () => ({
   sessionExists: vi.fn(async () => false),
+  // M-03: runner now gates session reuse on sessionLooksValid (non-empty
+  // JSON object with a `cookies` array). Mock returns false so no session
+  // rehydration is attempted in these unit tests.
+  sessionLooksValid: vi.fn(async () => false),
   sessionFilePath: vi.fn((cwd?: string) =>
     path.join(cwd ?? process.cwd(), '.crawl-session.json'),
   ),

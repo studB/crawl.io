@@ -38,7 +38,7 @@ import { launchBrowser, closeBrowser, type BrowserHandle } from './browser';
 import { waitForReady, extractFields } from './extract';
 import { renderEntry, scrubPaths, writeOutputToFile } from './output';
 import { ensureAuthenticated } from '../auth/index';
-import { sessionExists, sessionFilePath } from '../auth/session';
+import { sessionFilePath, sessionLooksValid } from '../auth/session';
 
 /**
  * Build the `error` envelope object, omitting `stack` entirely when it is
@@ -124,10 +124,14 @@ export async function runCrawl(configPath: string): Promise<CrawlResult> {
   // --- Stage 2: drive Chromium ---
   let handle: BrowserHandle | undefined;
   try {
-    // Phase 3: if a prior run saved a session, rehydrate it into the new
-    // context. The conditional-spread mirrors the existing exactOptional-
+    // Phase 3: if a prior run saved a VALID session, rehydrate it into the
+    // new context. The conditional-spread mirrors the existing exactOptional-
     // PropertyTypes convention — never assign `storageState: undefined`.
-    const storagePath = (await sessionExists()) ? sessionFilePath() : undefined;
+    // M-03: gate on `sessionLooksValid` (non-empty JSON object with a
+    // `cookies` array) rather than bare file-existence — a zero-byte or
+    // garbage-JSON session otherwise poisons `launchBrowser({ storageState })`
+    // with a Playwright parse error the catch block maps to `code: 'unknown'`.
+    const storagePath = (await sessionLooksValid()) ? sessionFilePath() : undefined;
     const launchOpts: Parameters<typeof launchBrowser>[0] = {};
     if (storagePath !== undefined) {
       launchOpts.storageState = storagePath;

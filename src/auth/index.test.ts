@@ -242,7 +242,7 @@ describe('ensureAuthenticated', () => {
     expect(out).toBe(page);
   });
 
-  it('successful submit: calls context.storageState({ path: sessionFilePath(cwd) }) and returns the same page', async () => {
+  it('successful submit: writes session atomically via tmp → rename; final file lands at sessionFilePath(cwd)', async () => {
     const cwd = await makeTmpCwd();
     // After the fake "submit" (the click), flip cookies to include NID_AUT+NID_SES.
     const { page, browser, state } = makeSubmittingTrio((s) => {
@@ -253,16 +253,38 @@ describe('ensureAuthenticated', () => {
     });
     state.url = 'https://cafe.naver.com/foo';
 
+    // H-02 harness: the fake storageState call records its path arg, AND
+    // actually writes a tiny payload to that path so writeSession can
+    // rename it into place. This exercises the full tmp → rename ceremony
+    // and lets us assert on the FINAL file location post-rename.
+    const origStorageState = state.storageStateCalls;
+    void origStorageState;
+    const fakeCtxAsUnknown = (page.context() as unknown as {
+      storageState: (opts?: { path?: string }) => Promise<unknown>;
+    });
+    fakeCtxAsUnknown.storageState = async (opts?: { path?: string }) => {
+      state.storageStateCalls.push({ path: opts?.path });
+      if (opts?.path !== undefined) {
+        const { writeFile: wf } = await import('node:fs/promises');
+        await wf(opts.path, '{"cookies":[],"origins":[]}', 'utf8');
+      }
+      return {};
+    };
+
     const out = await ensureAuthenticated(page, 'https://cafe.naver.com/foo', browser, {
       env: { NAVER_ID: 'u', NAVER_PW: 'p' },
       cwd,
     });
     expect(out).toBe(page);
+    // storageState was called once with a TMP path (not the final path).
     expect(state.storageStateCalls.length).toBe(1);
-    // The storage-state save path must equal sessionFilePath(cwd) — absolute
-    // path under the tmpdir.
     const saved = state.storageStateCalls[0]?.path;
-    expect(saved).toBe(path.join(cwd, SESSION_FILENAME));
+    expect(saved).toBeDefined();
+    expect(saved).not.toBe(path.join(cwd, SESSION_FILENAME));
+    expect(saved!.startsWith(path.join(cwd, SESSION_FILENAME) + '.tmp-')).toBe(true);
+    // …and the FINAL file landed at the canonical path after rename.
+    const { access } = await import('node:fs/promises');
+    await expect(access(path.join(cwd, SESSION_FILENAME))).resolves.toBeUndefined();
   });
 
   it('auth_failed classification: post-submit cookies empty + URL not captcha → throws CrawlError(auth_failed)', async () => {
@@ -356,7 +378,15 @@ describe('ensureAuthenticated', () => {
     ];
     const fakeHeadedContext = {
       cookies: async (): Promise<CookieRecord[]> => headedCookies,
-      storageState: async (): Promise<unknown> => ({}),
+      // H-02: writeSession invokes this with a tmp path and expects the
+      // callback to create the file so the subsequent rename succeeds.
+      storageState: async (opts?: { path?: string }): Promise<unknown> => {
+        if (opts?.path !== undefined) {
+          const { writeFile: wf } = await import('node:fs/promises');
+          await wf(opts.path, '{"cookies":[],"origins":[]}', 'utf8');
+        }
+        return {};
+      },
       close: async (): Promise<void> => {
         /* no-op */
       },

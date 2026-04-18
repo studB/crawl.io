@@ -50,7 +50,7 @@ import {
   readNaverCredentials,
   submitNaverLoginForm,
 } from './naver';
-import { sessionExists, sessionFilePath } from './session';
+import { sessionExists, sessionFilePath, writeSession } from './session';
 
 /** Shape returned by a custom browser launcher (tests inject fakes here). */
 export interface AuthLaunchHandle {
@@ -208,7 +208,9 @@ export async function ensureAuthenticated(
   if (cls === 'logged_in') {
     // Persist the fresh session for next-run reuse. The file path is under
     // cwd — tests pass a tmpdir-derived cwd so no repo pollution.
-    await context.storageState({ path: sessionFilePath(cwd) });
+    // H-02: atomic write via writeSession (tmp → rename) so a crash mid-
+    // serialize cannot leave a truncated session file behind.
+    await writeSession(cwd, (tmp) => context.storageState({ path: tmp }));
     return page;
   }
 
@@ -305,7 +307,9 @@ async function runHeadedFallback(
 
     // Persist fresh session BEFORE tearing down the headed browser — the
     // file is the source of truth for the relaunch that follows.
-    await headed.context.storageState({ path: sessionPath });
+    // H-02: atomic write via writeSession (tmp → rename) so a crash mid-
+    // serialize cannot leave a truncated session file behind.
+    await writeSession(cwd, (tmp) => headed.context.storageState({ path: tmp }));
   } finally {
     try {
       await headed.page.close();
