@@ -17,9 +17,15 @@
  */
 
 import { runCli } from '../cli/cli';
+import { scrubPaths } from '../crawler/output';
 
 runCli().catch((err: unknown) => {
+  // MD-04 / T-04-01: route the fatal message through scrubPaths so any
+  // absolute home-directory path surfaced by an upstream throw (commander
+  // internal, require resolution, a future refactor) is redacted BEFORE
+  // it hits stderr. Stack is deliberately suppressed — if a future
+  // maintainer adds a verbose stack dump here, scrub it too.
   const msg = err instanceof Error ? err.message : String(err);
-  process.stderr.write('\u2717 fatal: ' + msg + '\n');
+  process.stderr.write('\u2717 fatal: ' + scrubPaths(msg) + '\n');
   process.exit(1);
 });
