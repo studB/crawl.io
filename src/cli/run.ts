@@ -205,7 +205,7 @@ export function registerRunCommand(program: Command): Command {
         'Environment variables:',
         '  NAVER_ID                   Naver login id (required for Naver Cafe targets)',
         '  NAVER_PW                   Naver login password (required for Naver Cafe targets)',
-        '  CRAWL_HEADED_TIMEOUT_MS    Optional — headed-fallback poll timeout (ms, default 180000)',
+        '  CRAWL_HEADED_TIMEOUT_MS    Optional — headed-fallback poll timeout (ms, default 300000)',
         '',
         'Exit codes:',
         '  0  success — crawl completed and output was written',
