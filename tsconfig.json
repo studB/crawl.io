@@ -31,7 +31,11 @@
 
     // Recommended Options
     "strict": true,
-    "verbatimModuleSyntax": true,
+    // verbatimModuleSyntax intentionally disabled: with module:nodenext +
+    // type:commonjs, it forbids ESM import/export syntax in source files,
+    // which blocks idiomatic TS authorship. tsc still emits correct CJS
+    // require() under this combo; we just let tsc translate the syntax.
+    "verbatimModuleSyntax": false,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
