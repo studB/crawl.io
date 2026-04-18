@@ -37,6 +37,8 @@ import { CrawlError } from './errors';
 import { launchBrowser, closeBrowser, type BrowserHandle } from './browser';
 import { waitForReady, extractFields } from './extract';
 import { renderEntry, scrubPaths, writeOutputToFile } from './output';
+import { ensureAuthenticated } from '../auth/index';
+import { sessionExists, sessionFilePath } from '../auth/session';
 
 /**
  * Build the `error` envelope object, omitting `stack` entirely when it is
@@ -122,7 +124,40 @@ export async function runCrawl(configPath: string): Promise<CrawlResult> {
   // --- Stage 2: drive Chromium ---
   let handle: BrowserHandle | undefined;
   try {
-    handle = await launchBrowser();
+    // Phase 3: if a prior run saved a session, rehydrate it into the new
+    // context. The conditional-spread mirrors the existing exactOptional-
+    // PropertyTypes convention — never assign `storageState: undefined`.
+    const storagePath = (await sessionExists()) ? sessionFilePath() : undefined;
+    const launchOpts: Parameters<typeof launchBrowser>[0] = {};
+    if (storagePath !== undefined) {
+      launchOpts.storageState = storagePath;
+    }
+    handle = await launchBrowser(launchOpts);
+
+    // Phase 3: ensureAuthenticated may throw CrawlError with code
+    // 'auth_missing_credentials' | 'auth_failed' | 'captcha_unresolved' —
+    // all of which flow through the existing catch block below unchanged.
+    // The returned page is EITHER the original page OR a fresh page from a
+    // post-headed-fallback headless relaunch; in the latter case `handle`
+    // must be rebound so the `finally` block closes the CORRECT browser.
+    const authedPage = await ensureAuthenticated(handle.page, url, handle.browser);
+    if (authedPage !== handle.page) {
+      // Headed fallback swapped browsers — best-effort-close the stale
+      // page/context/browser. The new browser is reachable via
+      // authedPage.context().browser() (stable Playwright API).
+      try { await handle.page.close(); } catch { /* swallow */ }
+      try { await handle.context.close(); } catch { /* swallow */ }
+      try { await handle.browser.close(); } catch { /* swallow */ }
+      const ctx = authedPage.context();
+      const newBrowser = ctx.browser();
+      if (newBrowser === null) {
+        throw new CrawlError(
+          'auth_failed',
+          'headed fallback produced a page with no browser',
+        );
+      }
+      handle = { browser: newBrowser, context: ctx, page: authedPage };
+    }
 
     // Navigate with the configured timeout. Playwright's TimeoutError is
     // detected by name (cross-version safe); any other navigation error maps
