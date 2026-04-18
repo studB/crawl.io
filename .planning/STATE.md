@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-01-PLAN.md — CLI scaffold + commander + shebang entry landed
-last_updated: "2026-04-18T08:37:20.591Z"
-last_activity: 2026-04-18 -- Phase 4 planning complete
+stopped_at: Completed 04-02-PLAN.md — package.json publish metadata + README + MIT LICENSE + .gitattributes landed
+last_updated: "2026-04-18T08:49:24.199Z"
+last_activity: 2026-04-18 -- Completed 04-02 packaging metadata + README + LICENSE
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 13
-  completed_plans: 11
-  percent: 85
+  completed_plans: 12
+  percent: 92
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-04-18)
 ## Current Position
 
 Phase: 4
-Plan: 04-02 (next)
+Plan: 04-03 (next)
 Status: In Progress
-Last activity: 2026-04-18 -- Completed 04-01 CLI scaffold + commander + shebang entry
+Last activity: 2026-04-18 -- Completed 04-02 packaging metadata + README + LICENSE
 
-Progress: [█████████░] 85%
+Progress: [█████████░] 92%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: —
 - Total execution time: 0 hours
 
@@ -64,6 +64,7 @@ Progress: [█████████░] 85%
 | Phase 03-naver-auth-session P02 | 4 min | 3 tasks | 6 files |
 | Phase 03-naver-auth-session P03 | 7min | 3 tasks | 5 files |
 | Phase 04-cli-packaging P01 | 7min | 3 tasks | 8 files |
+| Phase 04-cli-packaging P02 | 8min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,11 @@ Recent decisions affecting current work:
 - [Phase 04-cli-packaging]: 04-01: runHandler uses RunDeps dependency injection (runCrawl+stdout+stderr+pathExists) and never calls process.exit itself — only registerRunCommand's commander action wrapper does; asserted to exactly 1 occurrence of process.exit in src/cli/run.ts
 - [Phase 04-cli-packaging]: 04-01: CLI imports runCrawl from the public barrel ../index (never ../crawler/runner directly) to preserve CLI-02 extension axis; commander v12 addHelpText('after',...) renders only via outputHelp (not helpInformation), tests capture via configureOutput writer
 - [Phase 04-cli-packaging]: 04-01: Postbuild script chmods dist/bin/crawl.js to 0755 (tsc emits 0644) and prepends shebang if missing — belt-and-suspenders; verified tsc 6.x preserves leading #! line natively; Rule-3 deviation from plan explicit template
+- [Phase 04-cli-packaging]: 04-02: License moved from ISC (npm-init default) to MIT; package.json.license + LICENSE file both carry same SPDX signal (MIT) — registry scanners see one unambiguous source of truth
+- [Phase 04-cli-packaging]: 04-02: repository/bugs/homepage use literal github.com/TBD/crawl.io placeholders — tests assert non-empty strings, not specific URLs, so user's one-line edit before publish keeps verification green (T-04-07 accepted)
+- [Phase 04-cli-packaging]: 04-02: prepack script runs npm run build (which chains through postbuild chmod 0755); every npm pack ships a freshly compiled, 0755, shebang-correct bin — eliminates stale-dist bugs at publish time
+- [Phase 04-cli-packaging]: 04-02: .gitattributes has globbed (*.js eol=lf) AND explicit (dist/bin/crawl.js eol=lf) rules — redundant-on-purpose; documents T-04-06 intent and survives glob narrowing by future contributors
+- [Phase 04-cli-packaging]: 04-02: LICENSE copyright uses 'crawl.io contributors' (not a specific name) since package.json.author is deliberately empty per CONTEXT.md 'left as user-settable' — keeps MIT notice legally complete while leaving attribution slot open
 
 ### Pending Todos
 
@@ -127,6 +133,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-18T08:37:20.586Z
-Stopped at: Completed 04-01-PLAN.md — CLI scaffold + commander + shebang entry landed
+Last session: 2026-04-18T08:49:24.195Z
+Stopped at: Completed 04-02-PLAN.md — package.json publish metadata + README + MIT LICENSE + .gitattributes landed
 Resume file: None

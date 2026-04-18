@@ -48,8 +48,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **CLI-01**: `crawl run <file.md>` runs a single crawl job from the given markdown file and exits
 - [x] **CLI-02**: The CLI uses a subcommand structure so future verbs (`init`, `validate`, `list`) can be added without breaking the top-level interface
 - [x] **CLI-03**: `crawl --help` and `crawl run --help` print usage showing the argument shape and required env vars
-- [ ] **CLI-04**: `package.json` declares a `bin` entry that resolves the `crawl` command after installation
-- [ ] **CLI-05**: The package builds with TypeScript (Node 20 LTS target) and is publishable to npm via `npm publish`
+- [x] **CLI-04**: `package.json` declares a `bin` entry that resolves the `crawl` command after installation
+- [x] **CLI-05**: The package builds with TypeScript (Node 20 LTS target) and is publishable to npm via `npm publish`
 
 ## v2 Requirements
 
@@ -124,8 +124,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLI-01 | Phase 4 | Complete |
 | CLI-02 | Phase 4 | Complete |
 | CLI-03 | Phase 4 | Complete |
-| CLI-04 | Phase 4 | Pending |
-| CLI-05 | Phase 4 | Pending |
+| CLI-04 | Phase 4 | Complete |
+| CLI-05 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 29 total

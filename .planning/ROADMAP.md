@@ -75,7 +75,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. `npm publish` succeeds against the registry (or a dry run passes): package includes compiled JS, type declarations, and no TypeScript source errors under strict mode
 **Plans**: 3 plans
   - [x] 04-01-PLAN.md — Install commander + scaffold src/cli/ + src/bin/crawl.ts + exit-code mapper with unit tests [Wave 1]
-  - [ ] 04-02-PLAN.md — Finalize package.json (bin, files, engines, keywords, license MIT) + README.md + LICENSE + .gitattributes [Wave 2]
+  - [x] 04-02-PLAN.md — Finalize package.json (bin, files, engines, keywords, license MIT) + README.md + LICENSE + .gitattributes [Wave 2]
   - [ ] 04-03-PLAN.md — CLI integration tests (spawn dist/bin/crawl.js) + npm pack --dry-run + tarball extract + npm publish --dry-run gate [Wave 3]
 
 ## Progress
@@ -88,4 +88,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Config Parser | 3/3 | Complete    | 2026-04-18 |
 | 2. Core Crawler + Output | 4/4 | Complete    | 2026-04-18 |
 | 3. Naver Auth + Session | 3/3 | Complete    | 2026-04-18 |
-| 4. CLI + Packaging | 0/3 | Planned | - |
+| 4. CLI + Packaging | 2/3 | In Progress | - |
