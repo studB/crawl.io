@@ -322,6 +322,45 @@ describe('appendOutput', () => {
     }
     expect(loneLfCount).toBe(0);
   });
+
+  it('Test 16c (MD-02): `# Output` inside a fenced code block is NOT treated as the real header', () => {
+    // A config that documents the format — includes an illustrative
+    // ```markdown ... # Output ...``` block. appendOutput MUST create a
+    // real `# Output` H1 outside that fence.
+    const source =
+      '# URL\n\nhttps://ex.com\n\n# Notes\n\n' +
+      'Example output format:\n\n' +
+      '```markdown\n' +
+      '# Output\n' +
+      '\n' +
+      '## Run — 2026-01-01 00:00\n' +
+      '```\n';
+    const result = appendOutput(source, sampleEntry);
+
+    // The fenced `# Output` still appears (source preserved byte-for-byte).
+    expect(result.startsWith(source)).toBe(true);
+    // A NEW real `# Output` H1 is appended outside the fence — total of TWO
+    // `# Output` line matches (the fenced one + the new real one).
+    const matches = result.match(/^# Output\s*$/gim) ?? [];
+    expect(matches.length).toBe(2);
+    // Sample entry lands after the newly-added header.
+    expect(result.trimEnd().endsWith(sampleEntry.trimEnd())).toBe(true);
+  });
+
+  it('Test 16d (MD-02): real `# Output` header OUTSIDE a fenced block is still reused (no duplication)', () => {
+    // A real `# Output` exists at EOF; an earlier fenced block illustrates
+    // the format. The real header must be detected and reused.
+    const source =
+      '# URL\n\nhttps://ex.com\n\n# Notes\n\n' +
+      '```markdown\n# Output\n```\n\n' +
+      '# Output\n';
+    const result = appendOutput(source, sampleEntry);
+
+    // Two `# Output` line matches — the fenced one + the real one —
+    // appendOutput did NOT introduce a third.
+    const matches = result.match(/^# Output\s*$/gim) ?? [];
+    expect(matches.length).toBe(2);
+  });
 });
 
 describe('writeOutputToFile', () => {

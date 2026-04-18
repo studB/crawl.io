@@ -80,11 +80,37 @@ export function renderEntry(result: CrawlResult): string {
 }
 
 /**
+ * MD-02: detect whether the source contains a `# Output` H1 that is NOT
+ * inside a fenced code block. A user config that documents the format itself
+ * may include a ```markdown``` example containing `# Output`; such a line
+ * must not be treated as the real header, or subsequent runs would write
+ * entries with no owning `# Output` H1 preceding them on disk.
+ *
+ * Fence detection toggles on any line beginning with three backticks (opening
+ * or closing). Nesting is not supported — standard CommonMark disallows it.
+ */
+function hasOutputHeaderOutsideFences(src: string): boolean {
+  let inFence = false;
+  // Split on either \n or \r\n — we compare line CONTENT, not separator bytes.
+  for (const line of src.split(/\r?\n/)) {
+    if (/^```/.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (!inFence && /^# Output\s*$/i.test(line)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Append a rendered entry to the end of a markdown source string.
  *
  * Contract (append-only):
- *   - If the source already contains a `# Output` H1 (case-insensitive), we
- *     do NOT add a duplicate header. The new entry is appended at EOF.
+ *   - If the source already contains a `# Output` H1 (case-insensitive) that
+ *     is NOT inside a fenced code block, we do NOT add a duplicate header.
+ *     The new entry is appended at EOF. (MD-02: fence-aware detection.)
  *   - If the source has no `# Output` H1, we create one at EOF before the
  *     entry.
  *   - The source is otherwise preserved BYTE-FOR-BYTE — prior entries, config
@@ -105,8 +131,7 @@ export function appendOutput(source: string, entry: string): string {
   const nl = source.includes('\r\n') ? '\r\n' : '\n';
   const src = source.endsWith(nl) ? source : source + nl;
   const normalizedEntry = nl === '\r\n' ? entry.replace(/\r?\n/g, '\r\n') : entry;
-  const hasOutputHeader = /^# Output\s*$/im.test(src);
-  if (hasOutputHeader) {
+  if (hasOutputHeaderOutsideFences(src)) {
     return src + nl + normalizedEntry;
   }
   return src + nl + '# Output' + nl + nl + normalizedEntry;
