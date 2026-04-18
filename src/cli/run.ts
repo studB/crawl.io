@@ -80,10 +80,17 @@ const SUMMARY_MAX_LEN = 80;
  * `SUMMARY_MAX_LEN` characters are cut at that length and suffixed with a
  * horizontal ellipsis. The visible payload (pre-ellipsis) is always
  * exactly `SUMMARY_MAX_LEN` characters for long inputs.
+ *
+ * WR-04(a): collapse whitespace runs (including \r?\n) to a single space
+ * BEFORE measuring length. An extracted field matched from a `<pre>` or
+ * multi-paragraph text node would otherwise span multiple stdout lines
+ * and break the documented single-line `✓ <field>: <value>` contract
+ * and any downstream shell piping expecting one line per run.
  */
 function truncateForSummary(value: string): string {
-  if (value.length <= SUMMARY_MAX_LEN) return value;
-  return value.slice(0, SUMMARY_MAX_LEN) + '\u2026';
+  const oneLine = value.replace(/\s+/g, ' ').trim();
+  if (oneLine.length <= SUMMARY_MAX_LEN) return oneLine;
+  return oneLine.slice(0, SUMMARY_MAX_LEN) + '\u2026';
 }
 
 /**
@@ -163,6 +170,12 @@ export async function runHandler(
     // failure comes back as `status: 'error'`. We still guard in case a
     // future refactor leaks an exception (better to surface a clean exit 1
     // than crash the CLI).
+    //
+    // WR-04(b): err.stack is INTENTIONALLY not emitted here. If a future
+    // maintainer adds a verbose-mode stack dump (e.g., `if (verbose)
+    // deps.stderr(err.stack)`), they MUST route it through scrubPaths
+    // first — otherwise the home-directory path embedded in a Node stack
+    // frame would bypass the MD-04 / T-04-01 redaction contract.
     if (!quiet) {
       const raw = err instanceof Error ? err.message : String(err);
       deps.stderr('\u2717 unknown: ' + scrubPaths(raw));

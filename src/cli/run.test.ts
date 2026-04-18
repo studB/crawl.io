@@ -162,6 +162,28 @@ describe('runHandler — success path', () => {
     const payload = line.slice('✓ title: '.length, -1);
     expect(payload).toHaveLength(80);
   });
+
+  it('WR-04(a): embedded newlines in first-field value are collapsed to single spaces (single-line summary)', async () => {
+    const file = '/tmp/cfg.md';
+    // A value a <pre> / multi-paragraph text node might yield: LF, CRLF,
+    // tabs, and leading/trailing whitespace all mixed in.
+    const multiline = '  line one\nline two\r\nline\tthree  ';
+    const { deps, stdout } = makeDeps({
+      pathExists: async () => true,
+      runCrawl: async () => okResult(file, { title: multiline }),
+    });
+
+    await runHandler({ file, verbose: false, quiet: false }, deps);
+
+    expect(stdout).toHaveLength(1);
+    const line = stdout[0] ?? '';
+    // Exactly one stdout entry, and no embedded newline within it — the
+    // stdout-array element itself must be a single logical line.
+    expect(line.includes('\n')).toBe(false);
+    expect(line.includes('\r')).toBe(false);
+    // Whitespace runs collapsed to a single space; leading/trailing trimmed.
+    expect(line).toBe('✓ title: line one line two line three');
+  });
 });
 
 describe('runHandler — error path', () => {
