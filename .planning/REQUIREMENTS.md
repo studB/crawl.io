@@ -19,12 +19,12 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Crawling (Playwright single-page extraction)
 
 - [x] **CRWL-01**: Crawler launches Playwright (Chromium) and navigates to the configured URL
-- [ ] **CRWL-02**: Crawler waits for the `waitFor` selector (scoped to the correct frame) before extracting
-- [ ] **CRWL-03**: Crawler aborts cleanly when the page or `waitFor` condition exceeds the configured `timeout`
-- [ ] **CRWL-04**: Crawler resolves CSS selectors against the top-level page or the declared frame
-- [ ] **CRWL-05**: Crawler resolves XPath selectors against the top-level page or the declared frame
-- [ ] **CRWL-06**: Crawler descends through each frame in an explicit frame path (supporting nested iframes at least 2 levels deep)
-- [ ] **CRWL-07**: Crawler extracts text content for each named field and returns a `{field: value}` object
+- [x] **CRWL-02**: Crawler waits for the `waitFor` selector (scoped to the correct frame) before extracting
+- [x] **CRWL-03**: Crawler aborts cleanly when the page or `waitFor` condition exceeds the configured `timeout`
+- [x] **CRWL-04**: Crawler resolves CSS selectors against the top-level page or the declared frame
+- [x] **CRWL-05**: Crawler resolves XPath selectors against the top-level page or the declared frame
+- [x] **CRWL-06**: Crawler descends through each frame in an explicit frame path (supporting nested iframes at least 2 levels deep)
+- [x] **CRWL-07**: Crawler extracts text content for each named field and returns a `{field: value}` object
 
 ### Auth (Naver login + session reuse)
 
@@ -104,12 +104,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CFG-05 | Phase 1 | Complete |
 | CFG-06 | Phase 1 | Complete |
 | CRWL-01 | Phase 2 | Complete |
-| CRWL-02 | Phase 2 | Pending |
-| CRWL-03 | Phase 2 | Pending |
-| CRWL-04 | Phase 2 | Pending |
-| CRWL-05 | Phase 2 | Pending |
-| CRWL-06 | Phase 2 | Pending |
-| CRWL-07 | Phase 2 | Pending |
+| CRWL-02 | Phase 2 | Complete |
+| CRWL-03 | Phase 2 | Complete |
+| CRWL-04 | Phase 2 | Complete |
+| CRWL-05 | Phase 2 | Complete |
+| CRWL-06 | Phase 2 | Complete |
+| CRWL-07 | Phase 2 | Complete |
 | AUTH-01 | Phase 3 | Pending |
 | AUTH-02 | Phase 3 | Pending |
 | AUTH-03 | Phase 3 | Pending |

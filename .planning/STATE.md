@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-04-18T02:35:12.130Z"
-last_activity: 2026-04-18 -- 02-02-PLAN.md complete (markdown output writeback; 19/19 tests green)
+status: completed
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-04-18T02:47:53.448Z"
+last_activity: 2026-04-18 -- 02-03-PLAN.md complete (browser + frame + extract with 2-level iframe descent; 105/105 tests green)
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 7
-  completed_plans: 5
-  percent: 71
+  completed_plans: 6
+  percent: 86
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-18)
 ## Current Position
 
 Phase: 2
-Plan: 03 (02-03-PLAN.md — browser/frame/extract, Wave 2)
-Status: 02-02-PLAN.md complete; Wave 2 continues with 02-03 (or 02-04 after 02-03)
-Last activity: 2026-04-18 -- 02-02-PLAN.md complete (markdown output writeback; 19/19 tests green)
+Plan: 04 (02-04-PLAN.md — runCrawl orchestrator)
+Status: 02-03-PLAN.md complete (browser/frame/extract, Wave 2 done); next is 02-04
+Last activity: 2026-04-18 -- 02-03-PLAN.md complete (browser + frame + extract with 2-level iframe descent; 105/105 tests green)
 
-Progress: [███████░░░] 71%
+Progress: [█████████░] 86%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [███████░░░] 71%
 | Phase 01-config-parser P03 | 5 min | 2 tasks | 4 files |
 | Phase 02-core-crawler-output P01 | 4 min | 2 tasks | 7 files |
 | Phase 02-core-crawler-output P02 | 3min | 1 tasks | 2 files |
+| Phase 02-core-crawler-output P03 | 6min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,10 @@ Recent decisions affecting current work:
 - [Phase 02-core-crawler-output]: CrawlResult error shape locked as { code, message, stack? } per 02-CONTEXT.md; stack populated by runCrawl from Error.stack
 - [Phase 02-core-crawler-output]: 02-02 locks on-disk run entry shape: em-dash H2 heading + italic meta line + fenced json block; success shape { fields, meta }, error shape { error: { code, message, stack? }, meta }; appendOutput is EOF-append with # Output header detect only to avoid duplication
 - [Phase 02-core-crawler-output]: fs errors from writeOutputToFile propagate unchanged — Plan 02-04 runner is the single point that wraps into CrawlError; keeps output.ts pure and free of error-classification coupling
+- [Phase 02-core-crawler-output]: 02-03: extract.ts is the sole Phase-2 throw site for CrawlError('frame_not_found', ...); frame.ts is pure and does NOT import ./errors — Playwright's frameLocator is lazy, so frame-presence failures only surface downstream as TimeoutError on .textContent(), which extract.ts classifies as frame_not_found when spec.frame is declared or selector_miss otherwise
+- [Phase 02-core-crawler-output]: 02-03: launchBrowser({ storageState? }) accepts the Phase-3 hook TODAY — conditional spread inside launchBrowser prevents 'storageState: undefined' from leaking into Playwright (exactOptionalPropertyTypes). Phase 3 is an additive call-site change, not a signature break.
+- [Phase 02-core-crawler-output]: 02-03: per-field extraction uses an internal 5000ms cap (EXTRACT_TIMEOUT_MS) separate from rules.timeout — rules.timeout is the page-load/waitFor budget, extraction is sub-second on a rendered page; tight internal cap gives unambiguous error attribution
+- [Phase 02-core-crawler-output]: 02-03 Rule-3 deviation: test/setup/playwright-env.ts extends LD_LIBRARY_PATH from /tmp/playwright-libs when the host is missing system NSS/NSPR/ALSA libs (WSL without sudo); no-op on well-provisioned hosts; crawler source has zero LD_LIBRARY_PATH knowledge
 
 ### Pending Todos
 
@@ -100,6 +105,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-18T02:34:46.287Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-04-18T02:47:24.294Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None
