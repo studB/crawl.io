@@ -1,0 +1,5 @@
+node_modules
+dist
+.crawl-session.json
+*.log
+.DS_Store
