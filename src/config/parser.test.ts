@@ -168,6 +168,30 @@ describe('parseConfig — success', () => {
     expect(Object.keys(job.selectors).length).toBeGreaterThan(0);
   });
 
+  it('accepts URL written as a list item (MR-03)', () => {
+    const base = buildConfig({ url: null });
+    const withList = base.replace('# Selectors', '# URL\n\n- https://ex.test\n\n# Selectors');
+    const job = parseConfig(withList);
+    expect(job.url).toBe('https://ex.test');
+  });
+
+  it('accepts URL written inside a blockquote (MR-03)', () => {
+    const base = buildConfig({ url: null });
+    const withQuote = base.replace('# Selectors', '# URL\n\n> https://ex.test\n\n# Selectors');
+    const job = parseConfig(withQuote);
+    expect(job.url).toBe('https://ex.test');
+  });
+
+  it('accepts URL inside a fenced code block (MR-03)', () => {
+    const base = buildConfig({ url: null });
+    const withCode = base.replace(
+      '# Selectors',
+      '# URL\n\n```\nhttps://ex.test\n```\n\n# Selectors',
+    );
+    const job = parseConfig(withCode);
+    expect(job.url).toBe('https://ex.test');
+  });
+
   it('Output section can be arbitrary / malformed without affecting parsing (D-03)', () => {
     const md = buildConfig({
       outputBlock: 'this is intentionally not a valid yaml\n```not-yaml\n{{{ broken\n```',

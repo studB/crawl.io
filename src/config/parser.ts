@@ -150,13 +150,23 @@ function readHeadingName(heading: Heading): string {
 }
 
 /**
- * From a section body (nodes between two H1s), find the first paragraph
- * whose collected text contains a non-empty trimmed line. Returns that
- * first non-blank line, trimmed; or undefined if none exists.
+ * From a section body (nodes between two H1s), find the first non-blank
+ * line of text. Accepts the first child of type `paragraph`, `list`,
+ * `blockquote`, or `code` (MR-03) — users often write URLs as a bullet
+ * list item (`- https://…`), a blockquote (`> https://…`), or inside a
+ * fenced code block. In all cases we pull the collected text via
+ * `collectText` and return the first non-blank trimmed line.
  */
 function extractFirstNonEmptyLine(body: RootContent[]): string | undefined {
   for (const node of body) {
-    if (node.type !== 'paragraph') continue;
+    if (
+      node.type !== 'paragraph' &&
+      node.type !== 'list' &&
+      node.type !== 'blockquote' &&
+      node.type !== 'code'
+    ) {
+      continue;
+    }
     const raw = collectText(node);
     for (const line of raw.split(/\r?\n/)) {
       const t = line.trim();
