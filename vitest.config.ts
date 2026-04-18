@@ -12,7 +12,11 @@ import { defineConfig } from 'vitest/config';
  */
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts', 'src/**/*.integration.test.ts'],
+    include: [
+      'src/**/*.test.ts',
+      'src/**/*.integration.test.ts',
+      'test/**/*.integration.test.ts',
+    ],
     environment: 'node',
     passWithNoTests: true,
     testTimeout: 60_000,
