@@ -84,6 +84,10 @@ async function executeStep(
     await page.goto(step.url, { timeout });
     return;
   }
+  if (step.action === 'sleep') {
+    await new Promise((resolve) => setTimeout(resolve, step.ms));
+    return;
+  }
 
   // All remaining kinds share the selector-driven shape (BaseSelector).
   const target = descendToFrame(page, step.frame);
@@ -122,7 +126,9 @@ function classify(err: unknown, step: ActionStep, index: number): CrawlError {
         'action ' + index + ' (goto) did not complete in time: ' + step.url,
       );
     }
-    if (step.frame && step.frame.length > 0) {
+    // `sleep` uses a plain setTimeout that never throws TimeoutError; this
+    // path only applies to the selector-driven kinds (click/type/waitFor).
+    if (step.action !== 'sleep' && step.frame && step.frame.length > 0) {
       return new CrawlError(
         'frame_not_found',
         'frame path ' +

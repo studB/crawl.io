@@ -177,12 +177,21 @@ export async function ensureAuthenticated(
   // present; otherwise defer to the runner's post-goto redirect detection.
   const idPresent = typeof env.NAVER_ID === 'string' && env.NAVER_ID.length > 0;
   const pwPresent = typeof env.NAVER_PW === 'string' && env.NAVER_PW.length > 0;
-  if (!idPresent || !pwPresent) {
+  // Opt-in: when CRAWL_MANUAL_LOGIN is set, skip the credential-based headless
+  // login entirely and open a headed browser for the user to log in by hand
+  // (id + pw + 2FA/captcha). Useful when env-var credentials are undesirable
+  // or the account routinely requires 2FA that can't be scripted.
+  const manualLogin = env.CRAWL_MANUAL_LOGIN === '1';
+  if (manualLogin || !idPresent || !pwPresent) {
     if (await sessionExists(cwd)) {
-      // Stale session + no creds → let the runner see the redirect, which
-      // (for a login-gated Naver URL) surfaces via a later classification
-      // pass — Phase 4 decides how to report it. Here we simply proceed.
+      // Session on disk exists — trust it; the runner's goto will prove or
+      // disprove validity. Same behavior for both manual-mode and no-creds.
       return page;
+    }
+    if (manualLogin) {
+      // Explicit opt-in: hand off to the headed browser so the user can log
+      // in by hand (id + pw + 2FA/captcha). Session is persisted on success.
+      return await runHeadedFallback(browser, contextOpts);
     }
     throw new CrawlError(
       'auth_missing_credentials',

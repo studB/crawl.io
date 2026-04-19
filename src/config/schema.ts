@@ -60,17 +60,24 @@ const WaitForActionSchema = z.strictObject({
   ...BaseSelectorShape,
 });
 
+const SleepActionSchema = z.strictObject({
+  action: z.literal('sleep'),
+  ms: z.number().int().positive('sleep.ms must be a positive integer'),
+});
+
 export const ActionStepSchema = z
   .discriminatedUnion('action', [
     GotoActionSchema,
     ClickActionSchema,
     TypeActionSchema,
     WaitForActionSchema,
+    SleepActionSchema,
   ])
   .transform((v): ActionStep => {
     // Normalize: strip optional `frame` when omitted (mirrors SelectorSpec convention
     // under exactOptionalPropertyTypes).
     if (v.action === 'goto') return { action: 'goto', url: v.url };
+    if (v.action === 'sleep') return { action: 'sleep', ms: v.ms };
     if (v.action === 'type') {
       const base = v.frame === undefined
         ? { action: 'type' as const, selector: v.selector, engine: v.engine, value: v.value }

@@ -36,12 +36,16 @@ export type FieldValue = string | string[] | FieldWithAttrs | FieldWithAttrs[];
  *   - click     — click a resolved element (frame-aware)
  *   - type      — fill an input with a static string (frame-aware)
  *   - waitFor   — wait for a selector to appear (commonly used to confirm success)
+ *   - sleep     — unconditional pause in ms; useful when the page needs time
+ *                 between interactions (debounced state, async validation, etc.)
+ *                 that no selector cleanly exposes
  */
 export type ActionStep =
   | { action: 'goto'; url: string }
   | ({ action: 'click' } & BaseSelector)
   | ({ action: 'type'; value: string } & BaseSelector)
-  | ({ action: 'waitFor' } & BaseSelector);
+  | ({ action: 'waitFor' } & BaseSelector)
+  | { action: 'sleep'; ms: number };
 
 export type ActionKind = ActionStep['action'];
 
