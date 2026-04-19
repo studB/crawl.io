@@ -6,6 +6,8 @@ dist
 .claude/**/*
 .planning/**/*
 
+job/**/*
+
 # Playwright session state (Phase 3)
 .crawl-session.json
 

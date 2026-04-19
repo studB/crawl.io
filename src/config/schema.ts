@@ -14,11 +14,17 @@ export const SelectorSpecSchema = z
     selector: z.string().min(1, 'selector must be a non-empty string'),
     engine: z.enum(['css', 'xpath']).default('css'),
     frame: z.array(z.string().min(1)).optional(),
+    first: z.boolean().default(true),
+    attributes: z.boolean().default(false),
   })
   .transform((v): SelectorSpec => {
-    return v.frame === undefined
-      ? { selector: v.selector, engine: v.engine }
-      : { selector: v.selector, engine: v.engine, frame: v.frame };
+    const out: SelectorSpec = { selector: v.selector, engine: v.engine };
+    if (v.frame !== undefined) out.frame = v.frame;
+    // Strip optional fields when they match the default so SelectorSpec
+    // objects stay minimal and equality-testable (mirrors the `frame` convention).
+    if (v.first === false) out.first = false;
+    if (v.attributes === true) out.attributes = true;
+    return out;
   });
 
 /**

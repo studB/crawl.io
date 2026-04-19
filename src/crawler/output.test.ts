@@ -1,29 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
-  formatTimestamp,
-  renderEntry,
-  appendOutput,
+  formatDateDir,
+  formatRunTimestamp,
+  buildPayload,
+  resolveOutputTarget,
   scrubPaths,
   writeOutputToFile,
 } from './output';
 import type { CrawlResult } from './types';
-
-/**
- * Pull the JSON payload out of a rendered entry's fenced ```json block.
- * Uses a line-anchored regex so that a triple-backtick substring inside
- * a JSON string value (Test 8) does NOT prematurely terminate the match.
- */
-function extractFencedJson(entry: string): unknown {
-  const match = entry.match(/^```json\n([\s\S]*?)\n```\s*$/m);
-  if (!match || match[1] === undefined) {
-    throw new Error('no json fence found in entry:\n' + entry);
-  }
-  return JSON.parse(match[1]);
-}
 
 describe('scrubPaths (MD-04)', () => {
   it('Test S1: replaces /home/<user>/... with <HOME>/... while preserving the repo portion', () => {
@@ -54,7 +42,6 @@ describe('scrubPaths (MD-04)', () => {
     const out = scrubPaths(input);
     expect(out).not.toContain('/home/ubuntu');
     expect(out.match(/<HOME>/g)?.length).toBe(2);
-    // Repo-relative path portion preserved.
     expect(out).toContain('/work/crawl.io/src/config/parser.ts:10:5');
     expect(out).toContain('/work/crawl.io/src/crawler/runner.ts:99:3');
   });
@@ -69,36 +56,33 @@ describe('scrubPaths (MD-04)', () => {
   });
 });
 
-describe('formatTimestamp', () => {
-  it('Test 1: returns YYYY-MM-DD HH:MM (UTC, no seconds)', () => {
-    const result = formatTimestamp(new Date('2026-04-18T01:22:00Z'));
-    expect(result).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
-    expect(result).toBe('2026-04-18 01:22');
+describe('formatDateDir', () => {
+  it('returns local-time YYYYMMDD', () => {
+    // Construct from local components — formatter reads local components back.
+    const d = new Date(2026, 3, 18, 14, 22, 5); // April 18 2026, 14:22:05 local
+    expect(formatDateDir(d)).toBe('20260418');
   });
 
-  it('Test 2: zero-pads single-digit components', () => {
-    const result = formatTimestamp(new Date('2026-01-05T04:07:00Z'));
-    expect(result).toBe('2026-01-05 04:07');
-  });
-
-  it('Test 3: UTC-locked regardless of process.env.TZ', () => {
-    const originalTz = process.env['TZ'];
-    try {
-      process.env['TZ'] = 'America/Los_Angeles';
-      const result = formatTimestamp(new Date('2026-04-18T23:59:00Z'));
-      expect(result).toBe('2026-04-18 23:59');
-    } finally {
-      if (originalTz === undefined) {
-        delete process.env['TZ'];
-      } else {
-        process.env['TZ'] = originalTz;
-      }
-    }
+  it('zero-pads month and day', () => {
+    const d = new Date(2026, 0, 5, 0, 0, 0); // Jan 5 2026 local
+    expect(formatDateDir(d)).toBe('20260105');
   });
 });
 
-describe('renderEntry', () => {
-  it('Test 4: success entry lines in order (em-dash H2, italic meta, json fence, trailing newline)', () => {
+describe('formatRunTimestamp', () => {
+  it('returns local-time YYYY-MM-DD-HH-mm-ss with seconds', () => {
+    const d = new Date(2026, 3, 18, 14, 22, 5);
+    expect(formatRunTimestamp(d)).toBe('2026-04-18-14-22-05');
+  });
+
+  it('zero-pads every component', () => {
+    const d = new Date(2026, 0, 5, 4, 7, 9);
+    expect(formatRunTimestamp(d)).toBe('2026-01-05-04-07-09');
+  });
+});
+
+describe('buildPayload', () => {
+  it('success: returns { fields, meta } with ISO startedAt and status=ok', () => {
     const result: CrawlResult = {
       status: 'ok',
       configPath: '/tmp/x.md',
@@ -107,75 +91,18 @@ describe('renderEntry', () => {
       durationMs: 1234,
       fields: { title: 'Hello' },
     };
-    const entry = renderEntry(result);
-
-    expect(entry.endsWith('\n')).toBe(true);
-
-    const lines = entry.split('\n');
-    // Line 0: H2 heading with em dash U+2014
-    expect(lines[0]).toBe('## Run \u2014 2026-04-18 01:22');
-    // Line 1: blank line
-    expect(lines[1]).toBe('');
-    // Line 2: italic meta
-    expect(lines[2]).toBe('_count: 1, duration: 1234ms_');
-    // Line 3: blank line
-    expect(lines[3]).toBe('');
-    // Line 4: fence opener — three backticks + "json"
-    expect(lines[4]).toBe('\u0060\u0060\u0060json');
-    // After the pretty-printed JSON comes the closing fence and a trailing newline
-    const closingFenceIdx = lines.lastIndexOf('\u0060\u0060\u0060');
-    expect(closingFenceIdx).toBeGreaterThan(4);
-    // Strict "trailing newline" check: split on \n produces an empty final element
-    expect(lines[lines.length - 1]).toBe('');
-  });
-
-  it('Test 5: success JSON payload parses to { fields, meta } with no error key and no configPath', () => {
-    const result: CrawlResult = {
-      status: 'ok',
-      configPath: '/tmp/x.md',
-      url: 'https://ex.com',
-      startedAt: new Date('2026-04-18T01:22:00Z'),
-      durationMs: 1234,
+    expect(buildPayload(result)).toEqual({
       fields: { title: 'Hello' },
-    };
-    const entry = renderEntry(result);
-    const parsed = extractFencedJson(entry);
-
-    expect(parsed).toEqual({
-      fields: { title: 'Hello' },
-      meta: { url: 'https://ex.com', status: 'ok', durationMs: 1234 },
+      meta: {
+        url: 'https://ex.com',
+        status: 'ok',
+        startedAt: '2026-04-18T01:22:00.000Z',
+        durationMs: 1234,
+      },
     });
-    // configPath is NOT serialized
-    expect(JSON.stringify(parsed)).not.toContain('configPath');
-    // No error key
-    expect(JSON.stringify(parsed)).not.toContain('"error"');
   });
 
-  it('Test 6: error entry — italic is "_error: code, duration: Xms_" and JSON has no fields key and no stack key when stack absent', () => {
-    const result: CrawlResult = {
-      status: 'error',
-      configPath: '/tmp/x.md',
-      url: 'https://ex.com',
-      startedAt: new Date('2026-04-18T01:22:00Z'),
-      durationMs: 1234,
-      error: { code: 'timeout', message: 'waitFor #post failed' },
-    };
-    const entry = renderEntry(result);
-
-    expect(entry).toContain('_error: timeout, duration: 1234ms_');
-    expect(entry).not.toContain('_count:');
-
-    const parsed = extractFencedJson(entry);
-    expect(parsed).toEqual({
-      error: { code: 'timeout', message: 'waitFor #post failed' },
-      meta: { url: 'https://ex.com', status: 'error', durationMs: 1234 },
-    });
-    expect(JSON.stringify(parsed)).not.toContain('"fields"');
-    // Stack was not provided — no "stack" key in the rendered JSON
-    expect(entry).not.toContain('"stack"');
-  });
-
-  it('Test 7: zero-fields success entry renders _count: 0_ and empty fields object', () => {
+  it('success: empty fields serialize as {}', () => {
     const result: CrawlResult = {
       status: 'ok',
       configPath: '/tmp/x.md',
@@ -184,29 +111,34 @@ describe('renderEntry', () => {
       durationMs: 42,
       fields: {},
     };
-    const entry = renderEntry(result);
-
-    expect(entry).toContain('_count: 0, duration: 42ms_');
-    const parsed = extractFencedJson(entry) as { fields: Record<string, string> };
-    expect(parsed.fields).toEqual({});
+    const payload = buildPayload(result) as { fields: Record<string, string> };
+    expect(payload.fields).toEqual({});
   });
 
-  it('Test 8: triple backticks inside error.message do not break the fence — JSON round-trips', () => {
-    const message = 'three ticks: \u0060\u0060\u0060';
+  it('error without stack: payload has no stack key', () => {
     const result: CrawlResult = {
       status: 'error',
       configPath: '/tmp/x.md',
       url: 'https://ex.com',
       startedAt: new Date('2026-04-18T01:22:00Z'),
-      durationMs: 7,
-      error: { code: 'extraction_failed', message },
+      durationMs: 1234,
+      error: { code: 'timeout', message: 'waitFor #post failed' },
     };
-    const entry = renderEntry(result);
-    const parsed = extractFencedJson(entry) as { error: { message: string } };
-    expect(parsed.error.message).toBe(message);
+    const payload = buildPayload(result);
+    expect(payload).toEqual({
+      error: { code: 'timeout', message: 'waitFor #post failed' },
+      meta: {
+        url: 'https://ex.com',
+        status: 'error',
+        startedAt: '2026-04-18T01:22:00.000Z',
+        durationMs: 1234,
+      },
+    });
+    expect(JSON.stringify(payload)).not.toContain('"stack"');
+    expect(JSON.stringify(payload)).not.toContain('"fields"');
   });
 
-  it('Test 9: error entry WITH stack — parsed JSON includes stack verbatim and raw entry contains "stack":', () => {
+  it('error with stack: stack included verbatim after scrub', () => {
     const stackText = 'Error: boom\n    at foo (bar.ts:10:5)';
     const result: CrawlResult = {
       status: 'error',
@@ -216,318 +148,188 @@ describe('renderEntry', () => {
       durationMs: 1234,
       error: { code: 'extraction_failed', message: 'boom', stack: stackText },
     };
-    const entry = renderEntry(result);
-
-    // Raw rendered string contains the "stack" key
-    expect(entry).toContain('"stack":');
-
-    const parsed = extractFencedJson(entry);
-    expect(parsed).toEqual({
-      error: {
-        code: 'extraction_failed',
-        message: 'boom',
-        stack: stackText,
-      },
-      meta: { url: 'https://ex.com', status: 'error', durationMs: 1234 },
-    });
+    const payload = buildPayload(result) as { error: { stack: string } };
+    expect(payload.error.stack).toBe(stackText);
   });
 });
 
-describe('appendOutput', () => {
-  const sampleEntry = renderEntry({
-    status: 'ok',
-    configPath: '/tmp/x.md',
-    url: 'https://ex.com',
-    startedAt: new Date('2026-04-18T01:22:00Z'),
-    durationMs: 100,
-    fields: { title: 'Sample' },
-  });
-
-  it('Test 10: no existing # Output — preserves source byte-for-byte as prefix, adds H1 # Output + entry', () => {
-    const source = '# URL\n\nhttps://ex.com\n\n# Selectors\n\n[block]\n';
-    const result = appendOutput(source, sampleEntry);
-
-    expect(result.startsWith(source)).toBe(true);
-    expect(result).toContain('\n# Output\n\n' + sampleEntry);
-  });
-
-  it('Test 11: existing # Output with no prior entries — appends without duplicating the header', () => {
-    const source = '# URL\n\nhttps://ex.com\n\n# Output\n';
-    const result = appendOutput(source, sampleEntry);
-
-    const headerMatches = result.match(/^# Output\s*$/gim) ?? [];
-    expect(headerMatches.length).toBe(1);
-    expect(result).toContain(sampleEntry);
-  });
-
-  it('Test 12: existing # Output with ONE prior entry — prior entry preserved byte-for-byte, new entry follows it', () => {
-    const priorEntry = renderEntry({
-      status: 'ok',
-      configPath: '/tmp/x.md',
-      url: 'https://ex.com',
-      startedAt: new Date('2026-04-18T01:00:00Z'),
-      durationMs: 500,
-      fields: { a: '1', b: '2' },
-    });
-    const source = '# URL\n\nhttps://ex.com\n\n# Output\n\n' + priorEntry;
-    const result = appendOutput(source, sampleEntry);
-
-    expect(result.includes(priorEntry)).toBe(true);
-    expect(result.indexOf(priorEntry)).toBeLessThan(result.indexOf(sampleEntry));
-  });
-
-  it('Test 13: case-insensitive # Output recognition (lowercase # output is reused)', () => {
-    const source = '# URL\n\nhttps://ex.com\n\n# output\n';
-    const result = appendOutput(source, sampleEntry);
-
-    const lowerMatches = result.match(/^# output\s*$/gim) ?? [];
-    expect(lowerMatches.length).toBe(1);
-    // No new uppercase "# Output" header was added (case matters at the byte level here)
-    expect(/^# Output$/m.test(result)).toBe(false);
-  });
-
-  it('Test 14: append-at-EOF — new entry lands at the end of file even if # Output is followed by other sections', () => {
-    const priorEntry = '## Run \u2014 2026-04-18 00:00\n\n_count: 0, duration: 1ms_\n\n\u0060\u0060\u0060json\n{}\n\u0060\u0060\u0060\n';
-    const source = '# Output\n\n' + priorEntry + '\n# TrailingNote\nsome prose\n';
-    const result = appendOutput(source, sampleEntry);
-
-    expect(result.trimEnd().endsWith(sampleEntry.trimEnd())).toBe(true);
-  });
-
-  it('Test 15: two-run append is idempotent — both entries present, first before second', () => {
-    const src = '# URL\n\nhttps://ex.com\n';
-    const entry1 = renderEntry({
-      status: 'ok',
-      configPath: '/tmp/x.md',
-      url: 'https://ex.com',
-      startedAt: new Date('2026-04-18T01:00:00Z'),
-      durationMs: 100,
-      fields: { run: '1' },
-    });
-    const entry2 = renderEntry({
-      status: 'ok',
-      configPath: '/tmp/x.md',
-      url: 'https://ex.com',
-      startedAt: new Date('2026-04-18T02:00:00Z'),
-      durationMs: 200,
-      fields: { run: '2' },
-    });
-    const result = appendOutput(appendOutput(src, entry1), entry2);
-
-    expect(result).toContain(entry1);
-    expect(result).toContain(entry2);
-    expect(result.indexOf(entry1)).toBeLessThan(result.indexOf(entry2));
-    // And exactly one # Output header
-    expect((result.match(/^# Output\s*$/gim) ?? []).length).toBe(1);
-  });
-
-  it('Test 16: source without trailing newline is normalized — result always ends with \\n', () => {
-    const source = '# URL\n\nhttps://ex.com'; // no trailing newline
-    const result = appendOutput(source, sampleEntry);
-
-    expect(result.endsWith('\n')).toBe(true);
-    // The original source content must still appear verbatim at the start (after normalization,
-    // one newline is added before any new content)
-    expect(result.startsWith(source + '\n')).toBe(true);
-  });
-
-  it('Test 16a (MD-01): CRLF source with no `# Output` round-trips to CRLF only — no bare \\n introduced', () => {
-    // Author a CRLF config with NO `# Output` header yet.
-    const source = '# URL\r\n\r\nhttps://ex.com\r\n\r\n# Selectors\r\n\r\n[block]\r\n';
-    const result = appendOutput(source, sampleEntry);
-
-    // The config portion is preserved byte-for-byte (CRLF intact).
-    expect(result.startsWith(source)).toBe(true);
-    // The appended `# Output` header uses CRLF.
-    expect(result).toContain('\r\n# Output\r\n');
-    // Result ends with CRLF.
-    expect(result.endsWith('\r\n')).toBe(true);
-    // NO lone `\n` in the result — every newline is `\r\n`.
-    let loneLfCount = 0;
-    for (let i = 0; i < result.length; i++) {
-      if (result[i] === '\n' && result[i - 1] !== '\r') {
-        loneLfCount += 1;
-      }
-    }
-    expect(loneLfCount).toBe(0);
-  });
-
-  it('Test 16b (MD-01): CRLF source with existing `# Output` header appends a CRLF entry', () => {
-    const source = '# URL\r\n\r\nhttps://ex.com\r\n\r\n# Output\r\n';
-    const result = appendOutput(source, sampleEntry);
-
-    // Exactly one `# Output` header (case-insensitive).
-    expect((result.match(/^# Output\s*$/gim) ?? []).length).toBe(1);
-    // No lone LF anywhere in the result.
-    let loneLfCount = 0;
-    for (let i = 0; i < result.length; i++) {
-      if (result[i] === '\n' && result[i - 1] !== '\r') {
-        loneLfCount += 1;
-      }
-    }
-    expect(loneLfCount).toBe(0);
-  });
-
-  it('Test 16c (MD-02): `# Output` inside a fenced code block is NOT treated as the real header', () => {
-    // A config that documents the format — includes an illustrative
-    // ```markdown ... # Output ...``` block. appendOutput MUST create a
-    // real `# Output` H1 outside that fence.
-    const source =
-      '# URL\n\nhttps://ex.com\n\n# Notes\n\n' +
-      'Example output format:\n\n' +
-      '```markdown\n' +
-      '# Output\n' +
-      '\n' +
-      '## Run — 2026-01-01 00:00\n' +
-      '```\n';
-    const result = appendOutput(source, sampleEntry);
-
-    // The fenced `# Output` still appears (source preserved byte-for-byte).
-    expect(result.startsWith(source)).toBe(true);
-    // A NEW real `# Output` H1 is appended outside the fence — total of TWO
-    // `# Output` line matches (the fenced one + the new real one).
-    const matches = result.match(/^# Output\s*$/gim) ?? [];
-    expect(matches.length).toBe(2);
-    // Sample entry lands after the newly-added header.
-    expect(result.trimEnd().endsWith(sampleEntry.trimEnd())).toBe(true);
-  });
-
-  it('Test 16d (MD-02): real `# Output` header OUTSIDE a fenced block is still reused (no duplication)', () => {
-    // A real `# Output` exists at EOF; an earlier fenced block illustrates
-    // the format. The real header must be detected and reused.
-    const source =
-      '# URL\n\nhttps://ex.com\n\n# Notes\n\n' +
-      '```markdown\n# Output\n```\n\n' +
-      '# Output\n';
-    const result = appendOutput(source, sampleEntry);
-
-    // Two `# Output` line matches — the fenced one + the real one —
-    // appendOutput did NOT introduce a third.
-    const matches = result.match(/^# Output\s*$/gim) ?? [];
-    expect(matches.length).toBe(2);
+describe('resolveOutputTarget', () => {
+  it('dir = <configDir>/output/<YYYYMMDD>, stem = run_<YYYY-MM-DD-HH-mm-ss>', () => {
+    const d = new Date(2026, 3, 18, 14, 22, 5);
+    const { dir, stem } = resolveOutputTarget('/workspace/job/job_1.md', d);
+    expect(dir).toBe(join('/workspace/job', 'output', '20260418'));
+    expect(stem).toBe('run_2026-04-18-14-22-05');
   });
 });
 
 describe('writeOutputToFile', () => {
-  it('Test 17: happy path — file content equals appendOutput(originalSource, entry)', async () => {
+  it('creates output/<YYYYMMDD>/run_<ts>.json with the expected payload', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'crawl-out-'));
     try {
-      const tmpPath = join(dir, 'cfg.md');
-      const originalSource = '# URL\n\nhttps://ex.com\n\n# Selectors\n\n[block]\n';
-      await writeFile(tmpPath, originalSource, 'utf8');
+      const cfg = join(dir, 'cfg.md');
+      await writeFile(cfg, '# URL\n', 'utf8');
 
-      const entry = renderEntry({
+      const startedAt = new Date(2026, 3, 18, 14, 22, 5);
+      const result: CrawlResult = {
         status: 'ok',
-        configPath: tmpPath,
+        configPath: cfg,
         url: 'https://ex.com',
-        startedAt: new Date('2026-04-18T01:22:00Z'),
+        startedAt,
         durationMs: 100,
         fields: { title: 'T' },
+      };
+
+      const written = await writeOutputToFile(cfg, result);
+
+      expect(written).toBe(
+        join(dir, 'output', '20260418', 'run_2026-04-18-14-22-05.json'),
+      );
+
+      const onDisk = await readFile(written, 'utf8');
+      expect(onDisk.endsWith('\n')).toBe(true);
+      const parsed = JSON.parse(onDisk);
+      expect(parsed).toEqual({
+        fields: { title: 'T' },
+        meta: {
+          url: 'https://ex.com',
+          status: 'ok',
+          startedAt: startedAt.toISOString(),
+          durationMs: 100,
+        },
       });
 
-      await writeOutputToFile(tmpPath, entry);
-
-      const onDisk = await readFile(tmpPath, 'utf8');
-      expect(onDisk).toBe(appendOutput(originalSource, entry));
+      // No legacy `# Output` section in the job markdown.
+      const cfgOnDisk = await readFile(cfg, 'utf8');
+      expect(cfgOnDisk).toBe('# URL\n');
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   });
 
-  it('Test 18: round-trip preservation — two successive writes keep both entries, first before second', async () => {
+  it('two runs at different seconds produce two separate files in the same day folder', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'crawl-out-'));
     try {
-      const tmpPath = join(dir, 'cfg.md');
-      const originalSource = '# URL\n\nhttps://ex.com\n';
-      await writeFile(tmpPath, originalSource, 'utf8');
+      const cfg = join(dir, 'cfg.md');
+      await writeFile(cfg, '# URL\n', 'utf8');
 
-      const entry1 = renderEntry({
+      const result1: CrawlResult = {
         status: 'ok',
-        configPath: tmpPath,
+        configPath: cfg,
         url: 'https://ex.com',
-        startedAt: new Date('2026-04-18T01:00:00Z'),
+        startedAt: new Date(2026, 3, 18, 1, 0, 0),
         durationMs: 100,
         fields: { run: '1' },
-      });
-      const entry2 = renderEntry({
+      };
+      const result2: CrawlResult = {
         status: 'error',
-        configPath: tmpPath,
+        configPath: cfg,
         url: 'https://ex.com',
-        startedAt: new Date('2026-04-18T02:00:00Z'),
+        startedAt: new Date(2026, 3, 18, 2, 0, 5),
         durationMs: 200,
         error: { code: 'timeout', message: 'boom' },
-      });
+      };
 
-      await writeOutputToFile(tmpPath, entry1);
-      await writeOutputToFile(tmpPath, entry2);
+      await writeOutputToFile(cfg, result1);
+      await writeOutputToFile(cfg, result2);
 
-      const onDisk = await readFile(tmpPath, 'utf8');
-      expect(onDisk).toContain(entry1);
-      expect(onDisk).toContain(entry2);
-      expect(onDisk.indexOf(entry1)).toBeLessThan(onDisk.indexOf(entry2));
-      expect((onDisk.match(/^# Output\s*$/gim) ?? []).length).toBe(1);
+      const dayDir = join(dir, 'output', '20260418');
+      const entries = (await readdir(dayDir)).sort();
+      expect(entries).toEqual([
+        'run_2026-04-18-01-00-00.json',
+        'run_2026-04-18-02-00-05.json',
+      ]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   });
 
-  it('Test 19: fs error surfaces — rejects with an Error when the path is unreachable', async () => {
-    const entry = renderEntry({
-      status: 'ok',
-      configPath: '/nonexistent/directory/does/not/exist.md',
-      url: 'https://ex.com',
-      startedAt: new Date('2026-04-18T01:22:00Z'),
-      durationMs: 100,
-      fields: {},
-    });
-    await expect(
-      writeOutputToFile('/nonexistent/directory/does/not/exist.md', entry),
-    ).rejects.toThrow();
-  });
-
-  it('Test 20 (MD-03): concurrent writeOutputToFile calls on SAME path serialize — both entries land', async () => {
+  it('same-second collision: second write lands as run_<stem>-2.json (wx-based)', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'crawl-out-'));
     try {
-      const tmpPath = join(dir, 'cfg.md');
-      const originalSource = '# URL\n\nhttps://ex.com\n';
-      await writeFile(tmpPath, originalSource, 'utf8');
+      const cfg = join(dir, 'cfg.md');
+      await writeFile(cfg, '# URL\n', 'utf8');
 
-      const entry1 = renderEntry({
+      const startedAt = new Date(2026, 3, 18, 14, 22, 5);
+      const baseResult: CrawlResult = {
         status: 'ok',
-        configPath: tmpPath,
+        configPath: cfg,
         url: 'https://ex.com',
-        startedAt: new Date('2026-04-18T01:00:00Z'),
+        startedAt,
         durationMs: 100,
         fields: { run: 'A' },
-      });
-      const entry2 = renderEntry({
-        status: 'ok',
-        configPath: tmpPath,
-        url: 'https://ex.com',
-        startedAt: new Date('2026-04-18T02:00:00Z'),
-        durationMs: 200,
+      };
+      const otherResult: CrawlResult = {
+        ...baseResult,
         fields: { run: 'B' },
-      });
+      };
 
-      // Fire both writes WITHOUT awaiting between them — tests the in-process
-      // lock + atomic rename, not sequential calls.
-      await Promise.all([
-        writeOutputToFile(tmpPath, entry1),
-        writeOutputToFile(tmpPath, entry2),
-      ]);
+      const p1 = await writeOutputToFile(cfg, baseResult);
+      const p2 = await writeOutputToFile(cfg, otherResult);
 
-      const onDisk = await readFile(tmpPath, 'utf8');
-      // Both entries present — no lost update.
-      expect(onDisk).toContain(entry1);
-      expect(onDisk).toContain(entry2);
-      // Exactly ONE `# Output` header.
-      expect((onDisk.match(/^# Output\s*$/gim) ?? []).length).toBe(1);
-      // No stray tmp file alongside the target.
-      const { readdir } = await import('node:fs/promises');
-      const dirents = await readdir(dir);
-      expect(dirents.filter((n) => n.startsWith('cfg.md.tmp-'))).toEqual([]);
+      expect(p1).toBe(
+        join(dir, 'output', '20260418', 'run_2026-04-18-14-22-05.json'),
+      );
+      expect(p2).toBe(
+        join(dir, 'output', '20260418', 'run_2026-04-18-14-22-05-2.json'),
+      );
+
+      const parsed1 = JSON.parse(await readFile(p1, 'utf8')) as {
+        fields: Record<string, string>;
+      };
+      const parsed2 = JSON.parse(await readFile(p2, 'utf8')) as {
+        fields: Record<string, string>;
+      };
+      expect(parsed1.fields).toEqual({ run: 'A' });
+      expect(parsed2.fields).toEqual({ run: 'B' });
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+
+  it('concurrent writeOutputToFile calls on the same second — both entries land under distinct filenames', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'crawl-out-'));
+    try {
+      const cfg = join(dir, 'cfg.md');
+      await writeFile(cfg, '# URL\n', 'utf8');
+
+      const startedAt = new Date(2026, 3, 18, 14, 22, 5);
+      const mk = (run: string): CrawlResult => ({
+        status: 'ok',
+        configPath: cfg,
+        url: 'https://ex.com',
+        startedAt,
+        durationMs: 100,
+        fields: { run },
+      });
+
+      const [p1, p2] = await Promise.all([
+        writeOutputToFile(cfg, mk('A')),
+        writeOutputToFile(cfg, mk('B')),
+      ]);
+
+      expect(p1).not.toBe(p2);
+      const dayDir = join(dir, 'output', '20260418');
+      const entries = await readdir(dayDir);
+      expect(entries.sort()).toEqual([
+        'run_2026-04-18-14-22-05-2.json',
+        'run_2026-04-18-14-22-05.json',
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('fs error surfaces — rejects when the parent directory cannot be created', async () => {
+    const result: CrawlResult = {
+      status: 'ok',
+      configPath: '/dev/null/cannot-mkdir-here/cfg.md',
+      url: 'https://ex.com',
+      startedAt: new Date(2026, 3, 18, 14, 22, 5),
+      durationMs: 100,
+      fields: {},
+    };
+    await expect(
+      writeOutputToFile('/dev/null/cannot-mkdir-here/cfg.md', result),
+    ).rejects.toThrow();
   });
 });

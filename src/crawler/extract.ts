@@ -19,9 +19,9 @@
  *   - Any other caught error → `extraction_failed`.
  */
 
-import type { Page } from 'playwright';
+import type { Locator, Page } from 'playwright';
 
-import type { SelectorSpec } from '../config/types';
+import type { FieldValue, FieldWithAttrs, SelectorSpec } from '../config/types';
 import { CrawlError } from './errors';
 import { descendToFrame } from './frame';
 
@@ -101,21 +101,36 @@ export async function waitForReady(
 export async function extractFields(
   page: Page,
   selectors: Record<string, SelectorSpec>,
-): Promise<Record<string, string>> {
-  const out: Record<string, string> = {};
+): Promise<Record<string, FieldValue>> {
+  const out: Record<string, FieldValue> = {};
 
   for (const [name, spec] of Object.entries(selectors)) {
     const target = descendToFrame(page, spec.frame);
     const pwSelector = toPlaywrightSelector(spec);
+    const firstOnly = spec.first ?? true;
+    const withAttrs = spec.attributes ?? false;
 
     try {
       const locator = target.locator(pwSelector);
-      const text = await locator.first().textContent({ timeout: DEFAULT_EXTRACT_TIMEOUT_MS });
-      if (text === null) {
-        const detail = 'selector `' + spec.selector + '` for field `' + name + '` returned null';
-        throw new CrawlError('selector_miss', detail);
+
+      if (firstOnly) {
+        out[name] = await extractOne(locator.first(), withAttrs, spec, name);
+      } else {
+        // Wait for at least one match so an empty `.all()` becomes a classifiable
+        // timeout (→ selector_miss / frame_not_found) rather than silently yielding [].
+        await locator.first().waitFor({ timeout: DEFAULT_EXTRACT_TIMEOUT_MS });
+        const elements = await locator.all();
+        const values: FieldValue[] = [];
+        for (const el of elements) {
+          const v = await extractOne(el, withAttrs, spec, name);
+          const text = typeof v === 'string' ? v : v.text;
+          if (isVisuallyBlank(text)) continue;
+          values.push(v);
+        }
+        out[name] = withAttrs
+          ? (values as FieldWithAttrs[])
+          : (values as string[]);
       }
-      out[name] = text.trim();
     } catch (err) {
       if (err instanceof CrawlError) {
         throw err;
@@ -138,4 +153,57 @@ export async function extractFields(
   }
 
   return out;
+}
+
+/**
+ * Read `innerHTML` from a single-element Locator and, when requested, snapshot
+ * the element's full attribute map. `NamedNodeMap` is not spreadable, so the
+ * attribute dump is done inside a page-side `evaluate` that indexes `.item(i)`.
+ */
+async function extractOne(
+  el: Locator,
+  withAttrs: boolean,
+  spec: SelectorSpec,
+  name: string,
+): Promise<string | FieldWithAttrs> {
+  const text = await el.innerHTML({ timeout: DEFAULT_EXTRACT_TIMEOUT_MS });
+  if (text === null) {
+    const detail = 'selector `' + spec.selector + '` for field `' + name + '` returned null';
+    throw new CrawlError('selector_miss', detail);
+  }
+  const trimmed = text.trim();
+  if (!withAttrs) return trimmed;
+
+  // `evaluate` runs in the page context where the DOM lib is native; this
+  // module is compiled with `lib: ["esnext"]` (no DOM), so we declare a minimal
+  // structural shape for the arg rather than leaning on TS's global `Element`.
+  interface AttrNode {
+    attributes: {
+      length: number;
+      item(i: number): { name: string; value: string } | null;
+    };
+  }
+  const attributes = await el.evaluate((node: AttrNode): Record<string, string> => {
+    const acc: Record<string, string> = {};
+    const attrs = node.attributes;
+    for (let i = 0; i < attrs.length; i += 1) {
+      const a = attrs.item(i);
+      if (a !== null) acc[a.name] = a.value;
+    }
+    return acc;
+  });
+  return { text: trimmed, attributes };
+}
+
+/**
+ * Returns `true` for strings that render as nothing to the user — empty after
+ * trimming AND after stripping zero-width characters that `String.prototype.trim`
+ * does not consider whitespace. Covers the common cases seen on Naver pages:
+ *   - U+200B ZERO WIDTH SPACE
+ *   - U+200C ZERO WIDTH NON-JOINER
+ *   - U+200D ZERO WIDTH JOINER
+ *   - U+FEFF ZERO WIDTH NO-BREAK SPACE (BOM)
+ */
+function isVisuallyBlank(s: string): boolean {
+  return s.replace(/[\u200B-\u200D\uFEFF]/g, '').trim().length === 0;
 }

@@ -61,6 +61,42 @@ describe('SelectorSpecSchema', () => {
     const r = SelectorSpecSchema.safeParse({ selector: '#x', frame: 'iframe#outer' });
     expect(r.success).toBe(false);
   });
+
+  it('first/attributes default to absent keys (defaults stripped)', () => {
+    const out = SelectorSpecSchema.parse({ selector: '#x' });
+    expect('first' in out).toBe(false);
+    expect('attributes' in out).toBe(false);
+  });
+
+  it('first: false is preserved on the output object', () => {
+    const out = SelectorSpecSchema.parse({ selector: '#x', first: false });
+    expect(out.first).toBe(false);
+  });
+
+  it('first: true is stripped (matches default)', () => {
+    const out = SelectorSpecSchema.parse({ selector: '#x', first: true });
+    expect('first' in out).toBe(false);
+  });
+
+  it('attributes: true is preserved on the output object', () => {
+    const out = SelectorSpecSchema.parse({ selector: '#x', attributes: true });
+    expect(out.attributes).toBe(true);
+  });
+
+  it('attributes: false is stripped (matches default)', () => {
+    const out = SelectorSpecSchema.parse({ selector: '#x', attributes: false });
+    expect('attributes' in out).toBe(false);
+  });
+
+  it('rejects non-boolean first', () => {
+    const r = SelectorSpecSchema.safeParse({ selector: '#x', first: 'yes' });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects non-boolean attributes', () => {
+    const r = SelectorSpecSchema.safeParse({ selector: '#x', attributes: 1 });
+    expect(r.success).toBe(false);
+  });
 });
 
 describe('RulesSchema', () => {

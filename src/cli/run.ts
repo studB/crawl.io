@@ -87,6 +87,27 @@ const SUMMARY_MAX_LEN = 80;
  * and break the documented single-line `✓ <field>: <value>` contract
  * and any downstream shell piping expecting one line per run.
  */
+/**
+ * Reduce a FieldValue (string | string[] | FieldWithAttrs | FieldWithAttrs[])
+ * to a single display string for the one-line CLI summary. The summary only
+ * needs something representative, not the full payload — the on-disk JSON is
+ * always the source of truth for the actual extracted data.
+ */
+function fieldValueToDisplay(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '(empty)';
+    const head = value[0];
+    const headText = typeof head === 'string' ? head : (head?.text ?? '');
+    const suffix = value.length > 1 ? ' (+' + (value.length - 1) + ' more)' : '';
+    return headText + suffix;
+  }
+  if (value !== null && typeof value === 'object' && 'text' in value) {
+    return String((value as { text: unknown }).text ?? '');
+  }
+  return String(value);
+}
+
 function truncateForSummary(value: string): string {
   const oneLine = value.replace(/\s+/g, ' ').trim();
   if (oneLine.length <= SUMMARY_MAX_LEN) return oneLine;
@@ -107,7 +128,7 @@ function successSummary(result: CrawlResult): string {
       const first = entries[0];
       if (first !== undefined) {
         const [name, value] = first;
-        return '\u2713 ' + name + ': ' + truncateForSummary(value);
+        return '\u2713 ' + name + ': ' + truncateForSummary(fieldValueToDisplay(value));
       }
     }
   }

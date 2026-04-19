@@ -205,7 +205,7 @@ describe('crawl CLI integration', () => {
       }
     });
 
-    it('crawl run <valid-public-fixture>.md exits 0 and round-trips Output to disk', async () => {
+    it('crawl run <valid-public-fixture>.md exits 0 and writes a run JSON under output/', async () => {
       // Copy the repo fixture to a throwaway dir so the post-run writeback
       // does not dirty the working tree.
       tempDir = await mkdtemp(path.join(os.tmpdir(), 'crawl-cli-happy-'));
@@ -217,9 +217,14 @@ describe('crawl CLI integration', () => {
       expect(r.code).toBe(0);
       // stdout summary: `✓ <field>: <value>` — first field is `title`
       expect(r.stdout).toContain('title');
-      // Output section was written back
-      const onDisk = await readFile(job, 'utf8');
-      expect(onDisk).toMatch(/^# Output/m);
+      // Run JSON landed under <jobDir>/output/<YYYYMMDD>/run_*.json
+      const { readdir } = await import('node:fs/promises');
+      const outRoot = path.join(tempDir, 'output');
+      const days = await readdir(outRoot);
+      expect(days.length).toBe(1);
+      const dayDir = path.join(outRoot, days[0] as string);
+      const files = await readdir(dayDir);
+      expect(files.some((f) => /^run_.*\.json$/.test(f))).toBe(true);
     });
   });
 });

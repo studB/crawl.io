@@ -8,16 +8,15 @@
  *   page.goto        (Playwright)       — navigate with rules.timeout
  *   waitForReady     (Plan 02-03)       — block on rules.waitFor with the SAME timeout
  *   extractFields    (Plan 02-03)       — per-field text extraction (CSS / XPath, iframe descent)
- *   renderEntry      (Plan 02-02)       — format the CrawlResult as a markdown run entry
- *   writeOutputToFile(Plan 02-02)       — append the entry under `# Output`
+ *   writeOutputToFile(Plan 02-02)       — write a JSON run file under <configDir>/output/<YYYYMMDD>/
  *   closeBrowser     (Plan 02-03)       — finally-safe teardown
  *
  * Contract locked by 02-CONTEXT.md and 02-04-PLAN.md:
  *
  *   1. Signature is EXACTLY `runCrawl(configPath: string): Promise<CrawlResult>`.
  *   2. NEVER terminates the process itself (Phase 4 CLI owns the exit-code mapping).
- *   3. ALWAYS writes a run entry before returning — success or failure. Writeback
- *      failures are swallowed (the returned CrawlResult is still meaningful).
+ *   3. ALWAYS writes a run JSON file before returning — success or failure.
+ *      Writeback failures are swallowed (the returned CrawlResult is still meaningful).
  *   4. Browser is closed in a `finally` block — Chromium never leaks.
  *   5. A `ConfigParseError` from Phase 1 surfaces as
  *      `CrawlResult.error = { code: 'config_parse', ..., stack? }` and does NOT
@@ -36,14 +35,14 @@ import type { CrawlResult, CrawlErrorCode } from './types';
 import { CrawlError } from './errors';
 import { launchBrowser, closeBrowser, type BrowserHandle } from './browser';
 import { waitForReady, extractFields } from './extract';
-import { renderEntry, scrubPaths, writeOutputToFile } from './output';
+import { scrubPaths, writeOutputToFile } from './output';
 import { ensureAuthenticated } from '../auth/index';
 import { sessionFilePath, sessionLooksValid } from '../auth/session';
 
 /**
  * Build the `error` envelope object, omitting `stack` entirely when it is
  * `undefined`. The conditional spread is required by exactOptionalPropertyTypes
- * (we must not assign `stack: undefined`) and mirrors the renderEntry contract
+ * (we must not assign `stack: undefined`) and mirrors the buildPayload contract
  * in `src/crawler/output.ts` which only emits a `"stack"` JSON key when the
  * field is defined.
  */
@@ -65,13 +64,13 @@ export async function runCrawl(configPath: string): Promise<CrawlResult> {
   let url = '';
 
   /**
-   * Assemble the CrawlResult and write it to the config file before returning.
-   * Every return path funnels through here so must-have #2 (always write an
-   * `# Output` entry) holds unconditionally.
+   * Assemble the CrawlResult and write it out as a JSON run file before
+   * returning. Every return path funnels through here so must-have #2
+   * (always write a run file) holds unconditionally.
    *
    * If the writeback itself fails we swallow the error — returning the result
    * is still meaningful (the CLI will surface the exit code; losing the on-disk
-   * entry is secondary to losing the envelope).
+   * file is secondary to losing the envelope).
    */
   const finalize = async (
     partial: Omit<CrawlResult, 'configPath' | 'startedAt' | 'durationMs'>,
@@ -84,7 +83,7 @@ export async function runCrawl(configPath: string): Promise<CrawlResult> {
       durationMs,
     };
     try {
-      await writeOutputToFile(configPath, renderEntry(result));
+      await writeOutputToFile(configPath, result);
     } catch {
       // swallow — the envelope is still returned to the caller
     }
@@ -203,7 +202,7 @@ export async function runCrawl(configPath: string): Promise<CrawlResult> {
       message = err.detail ?? err.message;
     }
     // MD-04: scrub absolute home-directory paths from message + stack before
-    // they are rendered into the committed markdown output.
+    // they are written into the committed JSON run file.
     return await finalize({
       status: 'error',
       url,

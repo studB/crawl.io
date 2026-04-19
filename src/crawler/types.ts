@@ -1,3 +1,5 @@
+import type { FieldValue } from '../config/types';
+
 export type CrawlErrorCode =
   | 'timeout'
   | 'selector_miss'
@@ -16,7 +18,7 @@ export interface CrawlResult {
   url: string;
   startedAt: Date;
   durationMs: number;
-  fields?: Record<string, string>;
+  fields?: Record<string, FieldValue>;
   error?: {
     code: CrawlErrorCode;
     message: string;
