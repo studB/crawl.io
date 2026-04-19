@@ -141,11 +141,11 @@ describe('CrawlJobSchema', () => {
   it('parses a full valid job with defaults applied', () => {
     const out = CrawlJobSchema.parse({
       url: 'https://cafe.naver.com/xxx',
-      selectors: { title: { selector: 'h1' } },
+      collectors: { title: { selector: 'h1' } },
       rules: {},
     });
     expect(out.url).toBe('https://cafe.naver.com/xxx');
-    expect(out.selectors.title?.engine).toBe('css');
+    expect(out.collectors?.['title']?.engine).toBe('css');
     expect(out.rules.timeout).toBe(30000);
     expect('waitFor' in out.rules).toBe(false);
   });
@@ -153,15 +153,15 @@ describe('CrawlJobSchema', () => {
   it('round-trips a multi-field job with frame arrays and xpath engine', () => {
     const out = CrawlJobSchema.parse({
       url: 'https://cafe.naver.com/xxx/1',
-      selectors: {
+      collectors: {
         title: { selector: '//h1', engine: 'xpath', frame: ['iframe#cafe_main'] },
         body: { selector: 'div.se-main-container' },
       },
       rules: { waitFor: 'iframe#cafe_main', timeout: 15000 },
     });
-    expect(out.selectors.title?.engine).toBe('xpath');
-    expect(out.selectors.title?.frame).toEqual(['iframe#cafe_main']);
-    expect(out.selectors.body?.engine).toBe('css');
+    expect(out.collectors?.['title']?.engine).toBe('xpath');
+    expect(out.collectors?.['title']?.frame).toEqual(['iframe#cafe_main']);
+    expect(out.collectors?.['body']?.engine).toBe('css');
     expect(out.rules.waitFor).toBe('iframe#cafe_main');
     expect(out.rules.timeout).toBe(15000);
   });
@@ -169,25 +169,61 @@ describe('CrawlJobSchema', () => {
   it('rejects invalid url', () => {
     const r = CrawlJobSchema.safeParse({
       url: 'not a url',
-      selectors: { a: { selector: '#x' } },
+      collectors: { a: { selector: '#x' } },
       rules: {},
     });
     expect(r.success).toBe(false);
   });
 
-  it('rejects empty selectors map', () => {
+  it('rejects empty collectors map', () => {
     const r = CrawlJobSchema.safeParse({
       url: 'https://x.test',
-      selectors: {},
+      collectors: {},
       rules: {},
     });
     expect(r.success).toBe(false);
+  });
+
+  it('rejects a job declaring BOTH collectors and actions (XOR refine)', () => {
+    const r = CrawlJobSchema.safeParse({
+      url: 'https://x.test',
+      collectors: { a: { selector: '#x' } },
+      actions: [{ action: 'click', selector: 'button' }],
+      rules: {},
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects a job declaring NEITHER collectors nor actions (XOR refine)', () => {
+    const r = CrawlJobSchema.safeParse({
+      url: 'https://x.test',
+      rules: {},
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it('parses an Actions-only job (no collectors) with default engine on selector actions', () => {
+    const r = CrawlJobSchema.safeParse({
+      url: 'https://x.test',
+      actions: [
+        { action: 'type', selector: 'textarea', value: 'hi' },
+        { action: 'click', selector: 'button.submit' },
+        { action: 'waitFor', selector: '.ack' },
+        { action: 'goto', url: 'https://x.test/next' },
+      ],
+      rules: {},
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.collectors).toBeUndefined();
+      expect(r.data.actions?.length).toBe(4);
+    }
   });
 
   it('rejects unknown top-level key (strict mode)', () => {
     const r = CrawlJobSchema.safeParse({
       url: 'https://x.test',
-      selectors: { a: { selector: '#x' } },
+      collectors: { a: { selector: '#x' } },
       rules: {},
       extraKey: 'nope',
     });

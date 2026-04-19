@@ -46,7 +46,7 @@ function buildConfig(url: string): string {
   return (
     '# URL\n\n' +
     url +
-    '\n\n# Selectors\n\n```yaml\ntitle: title\n```\n\n' +
+    '\n\n# Collectors\n\n```yaml\ntitle:\n  selector: h1\n```\n\n' +
     '# Rules\n\n```yaml\nwaitFor: body\ntimeout: 60000\n```\n'
   );
 }

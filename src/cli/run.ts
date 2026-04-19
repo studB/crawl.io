@@ -132,6 +132,11 @@ function successSummary(result: CrawlResult): string {
       }
     }
   }
+  const actions = result.actions;
+  if (actions !== undefined && actions.length > 0) {
+    return '\u2713 ran ' + actions.length + ' action' + (actions.length === 1 ? '' : 's') +
+      ' (' + Math.round(result.durationMs) + 'ms)';
+  }
   // IN-04: Math.round guarantees integer ms output even if a future
   // CrawlResult carries a fractional durationMs.
   return '\u2713 crawl ok (' + Math.round(result.durationMs) + 'ms)';

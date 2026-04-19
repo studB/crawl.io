@@ -24,14 +24,14 @@ const fixtureUrl =
 
 function buildMarkdownConfig(opts: {
   url: string;
-  selectorsYaml: string;
+  collectorsYaml: string;
   rulesYaml: string;
 }): string {
   return (
     '# URL\n\n' +
     opts.url +
-    '\n\n# Selectors\n\n```yaml\n' +
-    opts.selectorsYaml +
+    '\n\n# Collectors\n\n```yaml\n' +
+    opts.collectorsYaml +
     '\n```\n\n# Rules\n\n```yaml\n' +
     opts.rulesYaml +
     '\n```\n'
@@ -86,7 +86,7 @@ describe('runCrawl integration — end-to-end against real Chromium + file:// fi
   it('happy path: writes a single run JSON file with meta.status=ok and leaves the MD config untouched', async () => {
     const config = buildMarkdownConfig({
       url: fixtureUrl,
-      selectorsYaml: ['title:', '  selector: "#top-title"', '  engine: css'].join('\n'),
+      collectorsYaml: ['title:', '  selector: "#top-title"', '  engine: css'].join('\n'),
       rulesYaml: 'waitFor: "#top-title"\ntimeout: 10000',
     });
     const cfgPath = await setupConfig(config);
@@ -128,7 +128,7 @@ describe('runCrawl integration — end-to-end against real Chromium + file:// fi
   it('two successive runs produce two distinct JSON files; both payloads have status=ok', async () => {
     const config = buildMarkdownConfig({
       url: fixtureUrl,
-      selectorsYaml: ['title:', '  selector: "#top-title"', '  engine: css'].join('\n'),
+      collectorsYaml: ['title:', '  selector: "#top-title"', '  engine: css'].join('\n'),
       rulesYaml: 'waitFor: "#top-title"\ntimeout: 10000',
     });
     const cfgPath = await setupConfig(config);
@@ -155,7 +155,7 @@ describe('runCrawl integration — end-to-end against real Chromium + file:// fi
   it('descends a 2-level iframe chain and extracts DEEP_CONTENT_SENTINEL', async () => {
     const config = buildMarkdownConfig({
       url: fixtureUrl,
-      selectorsYaml: [
+      collectorsYaml: [
         'deep:',
         '  selector: "#deep-target"',
         '  engine: css',
@@ -183,7 +183,7 @@ describe('runCrawl integration — end-to-end against real Chromium + file:// fi
   it('XPath selector yields the same extracted text as CSS on the same element', async () => {
     const config = buildMarkdownConfig({
       url: fixtureUrl,
-      selectorsYaml: [
+      collectorsYaml: [
         'title:',
         '  selector: "//*[@id=\\"top-title\\"]"',
         "  engine: 'xpath'",
@@ -201,7 +201,7 @@ describe('runCrawl integration — end-to-end against real Chromium + file:// fi
   it('waitFor never-matching selector yields a timeout error envelope with stack + on-disk error JSON', async () => {
     const config = buildMarkdownConfig({
       url: 'data:text/html,<h1>hi</h1>',
-      selectorsYaml: ['title:', '  selector: "h1"', '  engine: css'].join('\n'),
+      collectorsYaml: ['title:', '  selector: "h1"', '  engine: css'].join('\n'),
       rulesYaml: 'waitFor: "#never"\ntimeout: 2000',
     });
     const cfgPath = await setupConfig(config);

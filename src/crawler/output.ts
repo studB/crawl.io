@@ -100,6 +100,10 @@ export function buildPayload(result: CrawlResult): Record<string, unknown> {
   };
 
   if (result.status === 'ok') {
+    // Success envelopes carry exactly one of `fields` / `actions` (mirrors the
+    // collectors-XOR-actions contract on CrawlJob). Empty-collectors jobs fall
+    // back to `{ fields: {} }` to preserve the Phase-2 payload shape.
+    if (result.actions !== undefined) return { actions: result.actions, meta };
     return { fields: result.fields ?? {}, meta };
   }
 

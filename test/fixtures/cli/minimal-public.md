@@ -2,7 +2,7 @@
 
 https://example.com/
 
-# Selectors
+# Collectors
 
 ```yaml
 title:

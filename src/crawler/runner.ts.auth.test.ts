@@ -90,7 +90,7 @@ function buildConfig(url: string): string {
   return (
     '# URL\n\n' +
     url +
-    '\n\n# Selectors\n\n```yaml\ntitle:\n  selector: "#top-title"\n  engine: css\n```\n\n' +
+    '\n\n# Collectors\n\n```yaml\ntitle:\n  selector: "#top-title"\n  engine: css\n```\n\n' +
     '# Rules\n\n```yaml\nwaitFor: "#top-title"\ntimeout: 10000\n```\n'
   );
 }

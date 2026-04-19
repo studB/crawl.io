@@ -15,13 +15,22 @@ import { ConfigParseError } from './errors';
  */
 interface RawSections {
   url?: string; // raw URL text line
-  selectors?: string; // raw YAML source (fenced block body)
+  collectors?: string; // raw YAML source (fenced block body)
+  actions?: string; // raw YAML source (fenced block body)
   rules?: string; // raw YAML source (fenced block body)
 }
 
-const REQUIRED = ['url', 'selectors', 'rules'] as const;
+// `url` and `rules` are strictly required. `collectors` vs `actions` is an
+// XOR enforced separately below (exactly one of them must be declared).
+const REQUIRED = ['url', 'rules'] as const;
 type RequiredKey = (typeof REQUIRED)[number];
-const KNOWN_SECTIONS = new Set(['url', 'selectors', 'rules', 'output']);
+const KNOWN_SECTIONS = new Set([
+  'url',
+  'collectors',
+  'actions',
+  'rules',
+  'output',
+]);
 
 /**
  * Structural issue produced by `splitSections`. `key` tags the issue with
@@ -85,11 +94,7 @@ function splitSections(tree: Root): {
       };
       // Tag the issue with its originating required key when applicable,
       // so the tagged-dedup loop below treats it as "already reported".
-      if (
-        headingName === 'url' ||
-        headingName === 'selectors' ||
-        headingName === 'rules'
-      ) {
+      if (headingName === 'url' || headingName === 'rules') {
         issue.key = headingName;
       }
       issues.push(issue);
@@ -109,16 +114,28 @@ function splitSections(tree: Root): {
       } else {
         sections.url = url;
       }
-    } else if (headingName === 'selectors' || headingName === 'rules') {
+    } else if (
+      headingName === 'collectors' ||
+      headingName === 'actions' ||
+      headingName === 'rules'
+    ) {
       const code = findYamlFence(body);
       if (code === undefined) {
-        const label = headingName === 'selectors' ? 'Selectors' : 'Rules';
-        issues.push({
-          key: headingName,
+        const label =
+          headingName === 'collectors'
+            ? 'Collectors'
+            : headingName === 'actions'
+              ? 'Actions'
+              : 'Rules';
+        const issue: StructuralIssue = {
           message: `${label} section has no fenced yaml code block`,
-        });
-      } else if (headingName === 'selectors') {
-        sections.selectors = code.value;
+        };
+        if (headingName === 'rules') issue.key = 'rules';
+        issues.push(issue);
+      } else if (headingName === 'collectors') {
+        sections.collectors = code.value;
+      } else if (headingName === 'actions') {
+        sections.actions = code.value;
       } else {
         sections.rules = code.value;
       }
@@ -269,14 +286,20 @@ export function parseConfig(
   const { sections, issues: sectionIssues } = splitSections(tree);
   for (const i of sectionIssues) issues.push(i.message);
 
-  // 3. YAML-parse the selectors + rules sections (do NOT short-circuit).
-  let selectorsRaw: unknown = undefined;
+  // 3. YAML-parse the collectors/actions/rules sections (do NOT short-circuit).
+  let collectorsRaw: unknown = undefined;
+  let actionsRaw: unknown = undefined;
   let rulesRaw: unknown = undefined;
 
-  if (sections.selectors !== undefined) {
-    const r = tryYamlParse(sections.selectors, 'Selectors');
+  if (sections.collectors !== undefined) {
+    const r = tryYamlParse(sections.collectors, 'Collectors');
     if ('error' in r) issues.push(r.error);
-    else selectorsRaw = r.value;
+    else collectorsRaw = r.value;
+  }
+  if (sections.actions !== undefined) {
+    const r = tryYamlParse(sections.actions, 'Actions');
+    if ('error' in r) issues.push(r.error);
+    else actionsRaw = r.value;
   }
   if (sections.rules !== undefined) {
     const r = tryYamlParse(sections.rules, 'Rules');
@@ -284,26 +307,39 @@ export function parseConfig(
     else rulesRaw = r.value;
   }
 
+  // 3b. XOR structural check on collectors/actions.
+  //     The Zod schema also encodes this, but emitting a structural diagnostic
+  //     here gives a cleaner error string than a nested Zod path and avoids a
+  //     duplicate "at least one" message when BOTH sections are missing.
+  const hasCollectors = sections.collectors !== undefined;
+  const hasActions = sections.actions !== undefined;
+  if (hasCollectors && hasActions) {
+    issues.push(
+      'a job must declare EITHER `# Collectors` OR `# Actions`, not both',
+    );
+  } else if (!hasCollectors && !hasActions) {
+    issues.push('a job must declare either `# Collectors` or `# Actions`');
+  }
+
   // 4. Schema validation is GATED. It only runs when every structural piece
   //    required by CrawlJobSchema is present AND yaml-parsed:
-  //      - sections.url must be a string (URL section parsed successfully),
-  //      - selectorsRaw must be defined (Selectors YAML block present AND parsed),
-  //      - rulesRaw must be defined (Rules YAML block present AND parsed).
-  //    If ANY piece is missing, we already have the structural issue on the
-  //    list; re-running safeParse with undefined would produce duplicate
-  //    Zod issues for the same root cause (e.g., both "URL section is missing"
-  //    and "url: Required"). Skip the schema call entirely in that case.
+  //      - sections.url must be a string,
+  //      - rulesRaw must be defined,
+  //      - exactly one of collectorsRaw / actionsRaw is defined and parsed.
+  //    If any piece is missing we already have a structural issue; re-running
+  //    safeParse against a partial candidate would produce duplicate Zod
+  //    issues for the same root cause. Skip in that case.
+  const xorCandidate = (collectorsRaw !== undefined) !== (actionsRaw !== undefined);
   const canValidate =
-    sections.url !== undefined &&
-    selectorsRaw !== undefined &&
-    rulesRaw !== undefined;
+    sections.url !== undefined && xorCandidate && rulesRaw !== undefined;
 
   if (canValidate) {
-    const candidate = {
+    const candidate: Record<string, unknown> = {
       url: sections.url,
-      selectors: selectorsRaw,
       rules: rulesRaw,
     };
+    if (collectorsRaw !== undefined) candidate.collectors = collectorsRaw;
+    if (actionsRaw !== undefined) candidate.actions = actionsRaw;
     const result = CrawlJobSchema.safeParse(candidate);
     if (!result.success) {
       for (const issue of result.error.issues) {
@@ -311,7 +347,18 @@ export function parseConfig(
         issues.push(`${path}: ${issue.message}`);
       }
     } else if (issues.length === 0) {
-      return result.data;
+      // Narrow the Zod output (which carries `collectors: X | undefined`) into
+      // CrawlJob (which under exactOptionalPropertyTypes forbids the
+      // `undefined`) by omitting keys whose value is undefined. Only one of
+      // collectors/actions will be defined post-XOR-validation.
+      const parsed = result.data;
+      const job: CrawlJob = {
+        url: parsed.url,
+        rules: parsed.rules,
+      };
+      if (parsed.collectors !== undefined) job.collectors = parsed.collectors;
+      if (parsed.actions !== undefined) job.actions = parsed.actions;
+      return job;
     }
   }
 

@@ -21,7 +21,7 @@
 
 import type { Locator, Page } from 'playwright';
 
-import type { FieldValue, FieldWithAttrs, SelectorSpec } from '../config/types';
+import type { BaseSelector, FieldValue, FieldWithAttrs, SelectorSpec } from '../config/types';
 import { CrawlError } from './errors';
 import { descendToFrame } from './frame';
 
@@ -48,7 +48,7 @@ export const DEFAULT_EXTRACT_TIMEOUT_MS = 5000;
  * XPath-looking string as `engine: 'css'` gets CSS behavior. Validation is the
  * Phase-1 Zod layer's job.
  */
-export function toPlaywrightSelector(spec: SelectorSpec): string {
+export function toPlaywrightSelector(spec: BaseSelector): string {
   if (spec.engine === 'xpath') {
     return 'xpath=' + spec.selector;
   }

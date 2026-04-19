@@ -35,6 +35,7 @@ import type { CrawlResult, CrawlErrorCode } from './types';
 import { CrawlError } from './errors';
 import { launchBrowser, closeBrowser, type BrowserHandle } from './browser';
 import { waitForReady, extractFields } from './extract';
+import { executeActions } from './actions';
 import { scrubPaths, writeOutputToFile } from './output';
 import { ensureAuthenticated } from '../auth/index';
 import { sessionFilePath, sessionLooksValid } from '../auth/session';
@@ -183,11 +184,27 @@ export async function runCrawl(configPath: string): Promise<CrawlResult> {
     // CrawlError('timeout', ...) with both selector AND timeout in detail.
     await waitForReady(handle.page, job.rules.waitFor, job.rules.timeout);
 
-    // Per-field extraction (CSS / XPath / iframe descent). Already throws
-    // CrawlError on failure; the catch below funnels it into the envelope.
-    const fields = await extractFields(handle.page, job.selectors);
+    // Dispatch on the collectors-XOR-actions contract enforced by the parser.
+    // Only one branch fires per job.
+    if (job.collectors !== undefined) {
+      // Per-field extraction (CSS / XPath / iframe descent). Throws CrawlError
+      // on failure; the catch below funnels it into the envelope.
+      const fields = await extractFields(handle.page, job.collectors);
+      return await finalize({ status: 'ok', url, fields });
+    }
 
-    return await finalize({ status: 'ok', url, fields });
+    if (job.actions !== undefined) {
+      // Per-step action execution (goto / click / type / waitFor). Also throws
+      // CrawlError on failure with step-index attribution.
+      const actions = await executeActions(handle.page, job.actions, job.rules.timeout);
+      return await finalize({ status: 'ok', url, actions });
+    }
+
+    // Unreachable: CrawlJobSchema enforces exactly one of the two.
+    throw new CrawlError(
+      'unknown',
+      'internal: job declared neither collectors nor actions (schema invariant)',
+    );
   } catch (err) {
     let code: CrawlErrorCode = 'unknown';
     let message = (err as Error)?.message ?? String(err);

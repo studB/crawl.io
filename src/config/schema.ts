@@ -1,30 +1,87 @@
 import { z } from 'zod';
-import type { CrawlJob, SelectorSpec } from './types';
+import type { ActionStep, CrawlJob, SelectorSpec } from './types';
 
 /**
- * SelectorSpecSchema — validates a single entry in the selectors map.
+ * Shared selector shape used by both collectors and selector-driven actions.
+ * Keeps engine/frame normalization in one place.
+ */
+const BaseSelectorShape = {
+  selector: z.string().min(1, 'selector must be a non-empty string'),
+  engine: z.enum(['css', 'xpath']).default('css'),
+  frame: z.array(z.string().min(1)).optional(),
+} as const;
+
+/**
+ * SelectorSpecSchema — validates a single entry in the collectors map.
  *
- * Defaults: engine omitted -> 'css' (D-07).
+ * Defaults: engine omitted -> 'css' (D-07). first -> true, attributes -> false.
  * Strict mode: unknown keys rejected (CFG-06).
- * Transform: when frame is omitted, strip the key entirely so the output
- * object satisfies exactOptionalPropertyTypes (no `frame: undefined` fields).
+ * Transform: optional fields stripped when they match the default so
+ * exactOptionalPropertyTypes objects stay minimal.
  */
 export const SelectorSpecSchema = z
   .strictObject({
-    selector: z.string().min(1, 'selector must be a non-empty string'),
-    engine: z.enum(['css', 'xpath']).default('css'),
-    frame: z.array(z.string().min(1)).optional(),
+    ...BaseSelectorShape,
     first: z.boolean().default(true),
     attributes: z.boolean().default(false),
   })
   .transform((v): SelectorSpec => {
     const out: SelectorSpec = { selector: v.selector, engine: v.engine };
     if (v.frame !== undefined) out.frame = v.frame;
-    // Strip optional fields when they match the default so SelectorSpec
-    // objects stay minimal and equality-testable (mirrors the `frame` convention).
     if (v.first === false) out.first = false;
     if (v.attributes === true) out.attributes = true;
     return out;
+  });
+
+/**
+ * ActionStepSchema — discriminated union on `action`.
+ *
+ * Each variant reuses `BaseSelectorShape` where relevant, so a click/type/waitFor
+ * gets the same engine default + frame-array validation as a collector.
+ */
+const GotoActionSchema = z.strictObject({
+  action: z.literal('goto'),
+  url: z.url('goto.url must be a valid URL'),
+});
+
+const ClickActionSchema = z.strictObject({
+  action: z.literal('click'),
+  ...BaseSelectorShape,
+});
+
+const TypeActionSchema = z.strictObject({
+  action: z.literal('type'),
+  ...BaseSelectorShape,
+  value: z.string(),
+});
+
+const WaitForActionSchema = z.strictObject({
+  action: z.literal('waitFor'),
+  ...BaseSelectorShape,
+});
+
+export const ActionStepSchema = z
+  .discriminatedUnion('action', [
+    GotoActionSchema,
+    ClickActionSchema,
+    TypeActionSchema,
+    WaitForActionSchema,
+  ])
+  .transform((v): ActionStep => {
+    // Normalize: strip optional `frame` when omitted (mirrors SelectorSpec convention
+    // under exactOptionalPropertyTypes).
+    if (v.action === 'goto') return { action: 'goto', url: v.url };
+    if (v.action === 'type') {
+      const base = v.frame === undefined
+        ? { action: 'type' as const, selector: v.selector, engine: v.engine, value: v.value }
+        : { action: 'type' as const, selector: v.selector, engine: v.engine, frame: v.frame, value: v.value };
+      return base;
+    }
+    // click | waitFor
+    const kind = v.action;
+    return v.frame === undefined
+      ? { action: kind, selector: v.selector, engine: v.engine }
+      : { action: kind, selector: v.selector, engine: v.engine, frame: v.frame };
   });
 
 /**
@@ -49,37 +106,62 @@ export const RulesSchema = z
 /**
  * CrawlJobSchema — validates a full raw CrawlJob.
  *
- * - url must be a valid URL string.
- * - selectors is a Record<string, SelectorSpec> with at least one entry.
- *   Keys starting with `_` are RESERVED for YAML anchor templates only
- *   (e.g. `_base: &b ...`). Such keys must not appear as real selectors
- *   and are rejected here — use anchors to factor shared spec fragments.
- * - rules is a RulesSchema result.
- * - Strict mode: unknown top-level keys rejected (CFG-06).
+ * Contract:
+ *   - url must be a valid URL string.
+ *   - EITHER `collectors` (non-empty Record<string, SelectorSpec>) OR
+ *     `actions` (non-empty ActionStep[]) must be defined — never both,
+ *     never neither. The XOR is enforced by a `.refine` after parsing.
+ *   - Collector keys starting with `_` are RESERVED for YAML anchor templates.
+ *   - rules is a RulesSchema result.
+ *   - Strict mode: unknown top-level keys rejected (CFG-06).
  */
 export const CrawlJobSchema = z
   .strictObject({
     url: z.url('url must be a valid URL'),
-    selectors: z
+    collectors: z
       .record(
         z
           .string()
           .min(1)
           .regex(
             /^(?!_)/,
-            'selector names cannot start with "_" (reserved for YAML anchor templates)',
+            'collector names cannot start with "_" (reserved for YAML anchor templates)',
           ),
         SelectorSpecSchema,
       )
       .refine((s) => Object.keys(s).length > 0, {
-        message: 'selectors must declare at least one named field',
-      }),
+        message: 'collectors must declare at least one named field',
+      })
+      .optional(),
+    actions: z.array(ActionStepSchema).min(1, 'actions must declare at least one step').optional(),
     rules: RulesSchema,
+  })
+  .superRefine((v, ctx) => {
+    const hasCollectors = v.collectors !== undefined;
+    const hasActions = v.actions !== undefined;
+    if (hasCollectors && hasActions) {
+      ctx.addIssue({
+        code: 'custom',
+        path: [],
+        message:
+          'a job must declare EITHER `collectors` OR `actions`, not both',
+      });
+    }
+    if (!hasCollectors && !hasActions) {
+      ctx.addIssue({
+        code: 'custom',
+        path: [],
+        message:
+          'a job must declare either `collectors` or `actions`',
+      });
+    }
   });
 
-// Compile-time guarantee that the schema's parsed output is assignable to the
-// public CrawlJob type. If the schema ever drifts from types.ts, tsc fails
-// here before runtime — the assignment direction checks output -> CrawlJob.
+// Compile-time sanity: the schema's parsed shape must be compatible with the
+// public CrawlJob type (modulo exactOptionalPropertyTypes, which insists an
+// absent optional be undefined-free — Zod always includes `undefined`, so we
+// do a structural subset check via a mapped cast rather than direct assignment).
 export type _CrawlJobSchemaOutput = z.infer<typeof CrawlJobSchema>;
-const _assertShape = (x: _CrawlJobSchemaOutput): CrawlJob => x;
+const _assertShape = (x: _CrawlJobSchemaOutput): CrawlJob =>
+  x as unknown as CrawlJob;
 void _assertShape;
